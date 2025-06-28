@@ -3,109 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cycling Media Generator</title>
+    <title>Instagram Media Generator</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-bicycle"></i>
-                    <h1>Cycling Media Generator</h1>
-                </div>
-                <p class="subtitle">Create stunning cycling posts with custom statistics and backgrounds</p>
-            </div>
+    <div class="app-container">
+        <!-- Top Banner -->
+        <header class="top-banner">
+            <h1>📸 Instagram Media Generator</h1>
+            <p>Create pixel-perfect posts for all Instagram formats</p>
         </header>
 
-        <main class="main-content">
-            <div class="editor-container">
-                <div class="controls-panel">
-                    <div class="section">
-                        <h3><i class="fas fa-image"></i> Background</h3>
-                        <div class="upload-area" id="uploadArea">
-                            <i class="fas fa-cloud-upload-alt"></i>
-                            <p>Drop your images here or click to browse</p>
-                            <input type="file" id="imageInput" accept="image/*" multiple hidden>
-                        </div>
-                        <div class="uploaded-images" id="uploadedImages" style="display: none;">
-                            <p>Your uploaded images:</p>
-                            <div class="image-gallery" id="imageGallery"></div>
-                        </div>
+        <div class="main-layout">
+            <!-- Left Sidebar -->
+            <aside class="sidebar">
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="title-text">Title</label>
+                        <input type="text" id="title-text" placeholder="Enter your post title" value="200km? Hectic">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="distance">Distance</label>
+                        <input type="text" id="distance" placeholder="e.g., 25.3 km" value="200.84 km">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="time">Time</label>
+                        <input type="text" id="time" placeholder="e.g., 1h 23m" value="8h 2m">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="elevation">Elevation Gain</label>
+                        <input type="text" id="elevation" placeholder="e.g., 450m" value="1,406 m">
+                    </div>
+
+                    <div class="control-group">
+                        <label>Background Image</label>
+                        <input type="file" id="bg-upload" accept="image/*" multiple>
+                        <div class="image-gallery" id="image-gallery"></div>
+                        
                         <div class="sample-backgrounds">
-                            <p>Or choose a sample:</p>
+                            <h4>Sample Backgrounds:</h4>
                             <div class="sample-grid">
-                                <div class="sample-bg" data-bg="gradient1" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)"></div>
-                                <div class="sample-bg" data-bg="gradient2" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"></div>
-                                <div class="sample-bg" data-bg="gradient3" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"></div>
-                                <div class="sample-bg" data-bg="gradient4" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"></div>
+                                <div class="sample-bg gradient-1" data-gradient="gradient-1">Gradient 1</div>
+                                <div class="sample-bg gradient-2" data-gradient="gradient-2">Gradient 2</div>
+                                <div class="sample-bg gradient-3" data-gradient="gradient-3">Gradient 3</div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="section">
-                        <h3><i class="fas fa-text-height"></i> Content</h3>
-                        <div class="form-group">
-                            <label for="titleText">Title</label>
-                            <input type="text" id="titleText" placeholder="200km? Hectic" value="200km? Hectic">
+                    <div class="control-group">
+                        <label for="opacity">Dark Overlay: <span id="opacity-value">50%</span></label>
+                        <input type="range" id="opacity" min="0" max="80" value="50">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="text-color">Text Color</label>
+                        <input type="color" id="text-color" value="#ffffff">
+                    </div>
+
+
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="content-area">
+                <div class="formats-grid">
+                    <div class="format-section square">
+                        <div class="canvas-container">
+                            <canvas id="square-canvas" width="1080" height="1080"></canvas>
                         </div>
-                                                <div class="stats-grid three-columns">
-                            <div class="form-group">
-                                <label for="distance">Distance</label>
-                                <input type="text" id="distance" placeholder="200.84 km" value="200.84 km">
-                            </div>
-                            <div class="form-group">
-                                <label for="time">Time</label>
-                                <input type="text" id="time" placeholder="8h 2m" value="8h 2m">
-                            </div>
-                            <div class="form-group">
-                                <label for="elevation">Elevation Gain</label>
-                                <input type="text" id="elevation" placeholder="1,406 m" value="1,406 m">
+                        <div class="format-details">
+                            <div class="format-header">
+                                <div class="format-title-section">
+                                    <h3>Square Feed Post</h3>
+                                    <div class="format-specs">
+                                        <span class="dimensions">1080 × 1080px</span>
+                                        <span class="separator">-</span>
+                                        <span class="ratio">1:1 aspect ratio</span>
+                                    </div>
+                                </div>
+                                <button class="download-btn" data-format="square">Download</button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="section">
-                        <h3><i class="fas fa-palette"></i> Styling</h3>
-                        <div class="style-controls">
-                            <div class="form-group">
-                                <label for="textColor">Text Color</label>
-                                <input type="color" id="textColor" value="#ffffff">
+                    <div class="feed-formats-column">
+                        <div class="format-section landscape">
+                            <div class="canvas-container">
+                                <canvas id="landscape-canvas" width="1080" height="566"></canvas>
                             </div>
+                            <div class="format-details">
+                                <div class="format-header">
+                                    <div class="format-title-section">
+                                        <h3>Landscape Feed Post</h3>
+                                        <div class="format-specs">
+                                            <span class="dimensions">1080 × 566px</span>
+                                            <span class="separator">-</span>
+                                            <span class="ratio">1.91:1 aspect ratio</span>
+                                        </div>
+                                    </div>
+                                    <button class="download-btn" data-format="landscape">Download</button>
+                                </div>
+                            </div>
+                        </div>
 
-                            <div class="form-group">
-                                <label for="opacity">Overlay Opacity</label>
-                                <input type="range" id="opacity" min="0" max="100" value="50">
-                                <span class="range-value">50%</span>
+                        <div class="format-section portrait">
+                            <div class="canvas-container">
+                                <canvas id="portrait-canvas" width="1080" height="1350"></canvas>
+                            </div>
+                            <div class="format-details">
+                                <div class="format-header">
+                                    <div class="format-title-section">
+                                        <h3>Portrait Feed Post</h3>
+                                        <div class="format-specs">
+                                            <span class="dimensions">1080 × 1350px</span>
+                                            <span class="separator">-</span>
+                                            <span class="ratio">4:5 aspect ratio</span>
+                                        </div>
+                                    </div>
+                                    <button class="download-btn" data-format="portrait">Download</button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="section">
-                        <button class="btn-primary" id="generateBtn">
-                            <i class="fas fa-magic"></i>
-                            Generate Post
-                        </button>
-                        <button class="btn-secondary" id="downloadBtn" disabled>
-                            <i class="fas fa-download"></i>
-                            Download Image
-                        </button>
+                    <div class="format-section story">
+                        <div class="canvas-container">
+                            <canvas id="story-canvas" width="1080" height="1920"></canvas>
+                        </div>
+                        <div class="format-details">
+                            <div class="format-header">
+                                <div class="format-title-section">
+                                    <h3>Instagram Story</h3>
+                                    <div class="format-specs">
+                                        <span class="dimensions">1080 × 1920px</span>
+                                        <span class="separator">-</span>
+                                        <span class="ratio">9:16 aspect ratio</span>
+                                    </div>
+                                </div>
+                                <button class="download-btn" data-format="story">Download</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="format-section reel">
+                        <div class="canvas-container">
+                            <canvas id="reel-canvas" width="1080" height="1920"></canvas>
+                        </div>
+                        <div class="format-details">
+                            <div class="format-header">
+                                <div class="format-title-section">
+                                    <h3>Instagram Reel</h3>
+                                    <div class="format-specs">
+                                        <span class="dimensions">1080 × 1920px</span>
+                                        <span class="separator">-</span>
+                                        <span class="ratio">9:16 aspect ratio</span>
+                                    </div>
+                                </div>
+                                <button class="download-btn" data-format="reel">Download</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                <div class="preview-panel">
-                    <div class="preview-container">
-                        <canvas id="canvas" width="600" height="800"></canvas>
-                        <div class="preview-placeholder" id="previewPlaceholder">
-                            <i class="fas fa-image"></i>
-                            <p>Your cycling post will appear here</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </main>
+            </main>
+        </div>
     </div>
 
     <script src="script.js"></script>

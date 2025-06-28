@@ -1,374 +1,283 @@
-class CyclingMediaGenerator {
+class InstagramMediaGenerator {
     constructor() {
-        this.canvas = document.getElementById('canvas');
-        this.ctx = this.canvas.getContext('2d');
-        this.backgroundImage = null;
-        this.currentGradient = null;
+        this.formats = {
+            square: { width: 1080, height: 1080, canvas: null, ctx: null },
+            portrait: { width: 1080, height: 1350, canvas: null, ctx: null },
+            landscape: { width: 1080, height: 566, canvas: null, ctx: null },
+            story: { width: 1080, height: 1920, canvas: null, ctx: null },
+            reel: { width: 1080, height: 1920, canvas: null, ctx: null }
+        };
+        
+        this.selectedBackground = null;
         this.uploadedImages = [];
         this.selectedImageIndex = -1;
         
         this.initializeElements();
+        this.initializeCanvases();
         this.bindEvents();
-        this.updateOpacityDisplay();
+        this.generateAllPreviews();
     }
 
     initializeElements() {
         this.elements = {
-            uploadArea: document.getElementById('uploadArea'),
-            imageInput: document.getElementById('imageInput'),
-            titleText: document.getElementById('titleText'),
+            titleText: document.getElementById('title-text'),
             distance: document.getElementById('distance'),
             time: document.getElementById('time'),
             elevation: document.getElementById('elevation'),
-            textColor: document.getElementById('textColor'),
+            bgUpload: document.getElementById('bg-upload'),
+            imageGallery: document.getElementById('image-gallery'),
             opacity: document.getElementById('opacity'),
-            generateBtn: document.getElementById('generateBtn'),
-            downloadBtn: document.getElementById('downloadBtn'),
-            previewPlaceholder: document.getElementById('previewPlaceholder'),
-            sampleBgs: document.querySelectorAll('.sample-bg'),
-            uploadedImages: document.getElementById('uploadedImages'),
-            imageGallery: document.getElementById('imageGallery')
+            opacityValue: document.getElementById('opacity-value'),
+            textColor: document.getElementById('text-color')
         };
     }
 
-    bindEvents() {
-        // Upload area events
-        this.elements.uploadArea.addEventListener('click', () => {
-            this.elements.imageInput.click();
-        });
-
-        this.elements.uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            this.elements.uploadArea.style.background = 'rgba(102, 126, 234, 0.15)';
-        });
-
-        this.elements.uploadArea.addEventListener('dragleave', () => {
-            this.elements.uploadArea.style.background = 'rgba(102, 126, 234, 0.05)';
-        });
-
-        this.elements.uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            this.elements.uploadArea.style.background = 'rgba(102, 126, 234, 0.05)';
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                this.handleMultipleImageUpload(files);
-            }
-        });
-
-        this.elements.imageInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                this.handleMultipleImageUpload(e.target.files);
-            }
-        });
-
-        // Sample background selection
-        this.elements.sampleBgs.forEach(bg => {
-            bg.addEventListener('click', () => {
-                this.selectSampleBackground(bg);
-            });
-        });
-
-        // Form input events
-        const inputs = ['titleText', 'distance', 'time', 'elevation', 'textColor'];
-        inputs.forEach(inputId => {
-            this.elements[inputId].addEventListener('input', () => {
-                this.generatePreview();
-            });
-        });
-
-        // Opacity slider
-        this.elements.opacity.addEventListener('input', () => {
-            this.updateOpacityDisplay();
-            this.generatePreview();
-        });
-
-        // Buttons
-        this.elements.generateBtn.addEventListener('click', () => {
-            this.generatePreview();
-        });
-
-        this.elements.downloadBtn.addEventListener('click', () => {
-            this.downloadImage();
+    initializeCanvases() {
+        Object.keys(this.formats).forEach(formatKey => {
+            const format = this.formats[formatKey];
+            format.canvas = document.getElementById(`${formatKey}-canvas`);
+            format.ctx = format.canvas.getContext('2d');
+            format.ctx.imageSmoothingEnabled = true;
+            format.ctx.imageSmoothingQuality = 'high';
         });
     }
 
-    handleMultipleImageUpload(files) {
-        Array.from(files).forEach(file => {
-            if (!file.type.startsWith('image/')) {
-                alert(`${file.name} is not a valid image file.`);
-                return;
-            }
+    bindEvents() {
+        // Input events
+        this.elements.titleText.addEventListener('input', () => this.generateAllPreviews());
+        this.elements.distance.addEventListener('input', () => this.generateAllPreviews());
+        this.elements.time.addEventListener('input', () => this.generateAllPreviews());
+        this.elements.elevation.addEventListener('input', () => this.generateAllPreviews());
+        this.elements.textColor.addEventListener('change', () => this.generateAllPreviews());
+        
+        // Opacity slider
+        this.elements.opacity.addEventListener('input', () => {
+            this.elements.opacityValue.textContent = `${this.elements.opacity.value}%`;
+            this.generateAllPreviews();
+        });
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    this.uploadedImages.push({
-                        image: img,
-                        name: file.name,
-                        dataUrl: e.target.result
-                    });
-                    this.updateImageGallery();
-                    
-                    // Select the first uploaded image
-                    if (this.selectedImageIndex === -1) {
-                        this.selectImage(this.uploadedImages.length - 1);
-                    }
+        // File upload
+        this.elements.bgUpload.addEventListener('change', (e) => {
+            this.handleImageUpload(e.target.files);
+        });
+
+        // Sample gradient backgrounds
+        document.querySelectorAll('.sample-bg').forEach(bg => {
+            bg.addEventListener('click', () => {
+                document.querySelectorAll('.sample-bg').forEach(b => b.classList.remove('selected'));
+                bg.classList.add('selected');
+                this.selectedBackground = bg.dataset.gradient;
+                this.selectedImageIndex = -1;
+                this.updateImageGallery();
+                this.generateAllPreviews();
+            });
+        });
+
+        // Download buttons (using event delegation for card-based buttons)
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('download-btn')) {
+                const format = e.target.dataset.format;
+                if (format) {
+                    this.downloadFormat(format);
+                }
+            }
+        });
+    }
+
+    handleImageUpload(files) {
+        Array.from(files).forEach(file => {
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.uploadedImages.push(img);
+                        this.updateImageGallery();
+                        if (this.uploadedImages.length === 1) {
+                            this.selectImage(0);
+                        }
+                    };
+                    img.src = e.target.result;
                 };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+                reader.readAsDataURL(file);
+            }
         });
     }
 
     updateImageGallery() {
-        if (this.uploadedImages.length === 0) {
-            this.elements.uploadedImages.style.display = 'none';
-            return;
-        }
-
-        this.elements.uploadedImages.style.display = 'block';
-        this.elements.imageGallery.innerHTML = '';
-
-        this.uploadedImages.forEach((imageData, index) => {
-            const imageDiv = document.createElement('div');
-            imageDiv.className = 'gallery-image';
-            imageDiv.style.backgroundImage = `url(${imageData.dataUrl})`;
-            imageDiv.title = imageData.name;
-            
+        const gallery = this.elements.imageGallery;
+        gallery.innerHTML = '';
+        
+        this.uploadedImages.forEach((img, index) => {
+            const imgElement = document.createElement('img');
+            imgElement.src = img.src;
+            imgElement.classList.add('gallery-image');
             if (index === this.selectedImageIndex) {
-                imageDiv.classList.add('active');
+                imgElement.classList.add('selected');
             }
-
-            const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn';
-            removeBtn.innerHTML = '×';
-            removeBtn.onclick = (e) => {
-                e.stopPropagation();
-                this.removeImage(index);
-            };
-
-            imageDiv.appendChild(removeBtn);
-            imageDiv.onclick = () => this.selectImage(index);
-            
-            this.elements.imageGallery.appendChild(imageDiv);
+            imgElement.addEventListener('click', () => this.selectImage(index));
+            gallery.appendChild(imgElement);
         });
     }
 
     selectImage(index) {
-        if (index >= 0 && index < this.uploadedImages.length) {
-            this.selectedImageIndex = index;
-            this.backgroundImage = this.uploadedImages[index].image;
-            this.currentGradient = null;
-            this.clearSampleSelection();
-            this.updateImageGallery();
-            this.generatePreview();
-        }
-    }
-
-    removeImage(index) {
-        this.uploadedImages.splice(index, 1);
-        
-        if (this.selectedImageIndex === index) {
-            this.selectedImageIndex = -1;
-            this.backgroundImage = null;
-        } else if (this.selectedImageIndex > index) {
-            this.selectedImageIndex--;
-        }
-        
+        this.selectedImageIndex = index;
+        this.selectedBackground = null;
+        document.querySelectorAll('.sample-bg').forEach(bg => bg.classList.remove('selected'));
         this.updateImageGallery();
-        
-        if (this.uploadedImages.length === 0) {
-            this.generatePreview();
-        } else if (this.selectedImageIndex === -1 && this.uploadedImages.length > 0) {
-            this.selectImage(0);
-        }
+        this.generateAllPreviews();
     }
 
-    selectSampleBackground(bgElement) {
-        // Clear previous selection
-        this.clearSampleSelection();
-        this.clearImageSelection();
-        
-        // Mark as active
-        bgElement.classList.add('active');
-        
-        // Get gradient type
-        const gradientType = bgElement.dataset.bg;
-        this.setGradientBackground(gradientType);
-        this.backgroundImage = null;
-        this.generatePreview();
-    }
-
-    clearImageSelection() {
-        this.selectedImageIndex = -1;
-        this.updateImageGallery();
-    }
-
-    clearSampleSelection() {
-        this.elements.sampleBgs.forEach(bg => {
-            bg.classList.remove('active');
+    generateAllPreviews() {
+        Object.keys(this.formats).forEach(formatKey => {
+            this.generatePreview(formatKey);
         });
     }
 
-    setGradientBackground(type) {
-        const gradients = {
-            gradient1: ['#667eea', '#764ba2'],
-            gradient2: ['#f093fb', '#f5576c'],
-            gradient3: ['#4facfe', '#00f2fe'],
-            gradient4: ['#43e97b', '#38f9d7']
-        };
+    generatePreview(formatKey) {
+        const format = this.formats[formatKey];
+        const ctx = format.ctx;
+        const canvas = format.canvas;
         
-        this.currentGradient = gradients[type];
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw background
+        this.drawBackground(ctx, canvas.width, canvas.height);
+        
+        // Draw overlay
+        this.drawOverlay(ctx, canvas.width, canvas.height);
+        
+        // Draw content
+        this.drawContent(ctx, canvas.width, canvas.height, formatKey);
     }
 
-    updateOpacityDisplay() {
-        const opacityValue = this.elements.opacity.value;
-        document.querySelector('.range-value').textContent = `${opacityValue}%`;
-    }
-
-    generatePreview() {
-        this.showCanvas();
-        this.clearCanvas();
-        
-        if (this.backgroundImage) {
-            this.drawBackgroundImage();
-        } else if (this.currentGradient) {
-            this.drawGradientBackground();
+    drawBackground(ctx, width, height) {
+        if (this.selectedImageIndex >= 0 && this.uploadedImages[this.selectedImageIndex]) {
+            this.drawImageBackground(ctx, width, height, this.uploadedImages[this.selectedImageIndex]);
+        } else if (this.selectedBackground) {
+            this.drawGradientBackground(ctx, width, height, this.selectedBackground);
         } else {
-            this.drawDefaultBackground();
+            this.drawDefaultBackground(ctx, width, height);
         }
-        
-        this.drawOverlay();
-        this.drawContent();
-        
-        this.elements.downloadBtn.disabled = false;
     }
 
-    showCanvas() {
-        this.canvas.style.display = 'block';
-        this.elements.previewPlaceholder.style.display = 'none';
-    }
-
-    clearCanvas() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-
-    drawBackgroundImage() {
-        const { width, height } = this.canvas;
-        const imgAspect = this.backgroundImage.width / this.backgroundImage.height;
+    drawImageBackground(ctx, width, height, img) {
+        const imgAspect = img.width / img.height;
         const canvasAspect = width / height;
         
-        let drawWidth, drawHeight, offsetX = 0, offsetY = 0;
+        let drawWidth, drawHeight, offsetX, offsetY;
         
         if (imgAspect > canvasAspect) {
             drawHeight = height;
             drawWidth = height * imgAspect;
             offsetX = (width - drawWidth) / 2;
+            offsetY = 0;
         } else {
             drawWidth = width;
             drawHeight = width / imgAspect;
+            offsetX = 0;
             offsetY = (height - drawHeight) / 2;
         }
         
-        this.ctx.drawImage(this.backgroundImage, offsetX, offsetY, drawWidth, drawHeight);
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     }
 
-    drawGradientBackground() {
-        const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
-        gradient.addColorStop(0, this.currentGradient[0]);
-        gradient.addColorStop(1, this.currentGradient[1]);
+    drawGradientBackground(ctx, width, height, gradientType) {
+        let gradient;
         
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        switch (gradientType) {
+            case 'gradient-1':
+                gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#667eea');
+                gradient.addColorStop(1, '#764ba2');
+                break;
+            case 'gradient-2':
+                gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#f093fb');
+                gradient.addColorStop(1, '#f5576c');
+                break;
+            case 'gradient-3':
+                gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#4facfe');
+                gradient.addColorStop(1, '#00f2fe');
+                break;
+            default:
+                gradient = ctx.createLinearGradient(0, 0, width, height);
+                gradient.addColorStop(0, '#667eea');
+                gradient.addColorStop(1, '#764ba2');
+        }
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
     }
 
-    drawDefaultBackground() {
-        const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, this.canvas.height);
+    drawDefaultBackground(ctx, width, height) {
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
         gradient.addColorStop(0, '#667eea');
         gradient.addColorStop(1, '#764ba2');
         
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
     }
 
-    drawOverlay() {
+    drawOverlay(ctx, width, height) {
         const opacity = parseInt(this.elements.opacity.value) / 100;
-        this.ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+        ctx.fillRect(0, 0, width, height);
     }
 
-    drawContent() {
+    drawContent(ctx, width, height, formatKey) {
         const textColor = this.elements.textColor.value;
         
-        // Draw title and stats with proper spacing
-        this.drawTitleAndStats(textColor);
-    }
-
-
-
-    drawTitleAndStats(color) {
-        this.ctx.fillStyle = color;
-        this.ctx.textAlign = 'left';
-        
-        const margin = 50;
-        const canvasHeight = this.canvas.height;
-        const canvasWidth = this.canvas.width;
-        
-        // Get field values
+        // Get content
         const title = this.elements.titleText.value;
         const elevation = this.elements.elevation.value;
         const time = this.elements.time.value;
         const distance = this.elements.distance.value;
         
-        // Calculate available stats (non-empty fields)
+        // Calculate available stats
         const availableStats = [];
         if (elevation) availableStats.push({ label: 'Elev Gain', value: elevation });
         if (time) availableStats.push({ label: 'Time', value: time });
         if (distance) availableStats.push({ label: 'Distance', value: distance });
         
+        // Draw standard content for all formats
+        this.drawStandardContent(ctx, width, height, textColor, title, availableStats, formatKey);
+    }
+
+
+
+    drawStandardContent(ctx, width, height, color, title, availableStats, formatKey) {
+        ctx.fillStyle = color;
+        ctx.textAlign = 'left';
+        
+        // Scale margins based on canvas size
+        const margin = Math.max(50, width * 0.05);
+        
         // Draw stats at bottom with flex layout
         let statsHeight = 0;
         if (availableStats.length > 0) {
-            const statsBottomY = canvasHeight - margin;
-            statsHeight = this.drawBottomLeftStats(availableStats, statsBottomY, margin, canvasWidth - (margin * 2));
+            const statsBottomY = height - margin;
+            statsHeight = this.drawBottomLeftStats(ctx, availableStats, statsBottomY, margin, width - (margin * 2), formatKey);
         }
         
         // Draw title 60px above stats, bottom-left aligned
         if (title) {
-            const titleBottomY = canvasHeight - margin - statsHeight - 60;
-            this.drawBottomLeftTitle(title, titleBottomY, margin, canvasWidth - (margin * 2));
+            const titleBottomY = height - margin - statsHeight - Math.max(60, height * 0.03);
+            this.drawBottomLeftTitle(ctx, title, titleBottomY, margin, width - (margin * 2), formatKey);
         }
     }
 
-    wrapText(text, maxWidth) {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = words[0];
-
-        for (let i = 1; i < words.length; i++) {
-            const word = words[i];
-            const width = this.ctx.measureText(currentLine + ' ' + word).width;
-            if (width < maxWidth) {
-                currentLine += ' ' + word;
-            } else {
-                lines.push(currentLine);
-                currentLine = word;
-            }
-        }
-        lines.push(currentLine);
-        return lines;
-    }
-
-    drawBottomLeftStats(stats, bottomY, startX, maxWidth) {
-        // Set base font sizes
-        const labelFontSize = 18;
-        const valueFontSize = 36;
-        const horizontalGap = 40;
-        const verticalGap = 40;
-        const labelValueGap = 12;
+    drawBottomLeftStats(ctx, stats, bottomY, startX, maxWidth, formatKey) {
+        // Scale font sizes based on format
+        const baseScale = formatKey === 'landscape' ? 0.8 : 1;
+        const labelFontSize = Math.floor(18 * baseScale);
+        const valueFontSize = Math.floor(36 * baseScale);
+        const horizontalGap = Math.floor(40 * baseScale);
+        const verticalGap = Math.floor(40 * baseScale);
+        const labelValueGap = Math.floor(12 * baseScale);
         
-        // Calculate stat dimensions and create flex layout
         let currentY = bottomY;
         let currentX = startX;
         let maxHeightUsed = 0;
@@ -379,11 +288,11 @@ class CyclingMediaGenerator {
             const stat = stats[i];
             
             // Calculate stat dimensions
-            this.ctx.font = `${labelFontSize}px Inter, sans-serif`;
-            const labelWidth = this.ctx.measureText(stat.label).width;
+            ctx.font = `${labelFontSize}px Inter, sans-serif`;
+            const labelWidth = ctx.measureText(stat.label).width;
             
-            this.ctx.font = `bold ${valueFontSize}px Inter, sans-serif`;
-            const valueWidth = this.ctx.measureText(stat.value).width;
+            ctx.font = `bold ${valueFontSize}px Inter, sans-serif`;
+            const valueWidth = ctx.measureText(stat.value).width;
             
             const statWidth = Math.max(labelWidth, valueWidth);
             const statHeight = labelFontSize + labelValueGap + valueFontSize;
@@ -401,13 +310,11 @@ class CyclingMediaGenerator {
             }
             
             // Draw stat at current position
-            // Draw label
-            this.ctx.font = `${labelFontSize}px Inter, sans-serif`;
-            this.ctx.fillText(stat.label, currentX, currentY - valueFontSize - labelValueGap);
+            ctx.font = `${labelFontSize}px Inter, sans-serif`;
+            ctx.fillText(stat.label, currentX, currentY - valueFontSize - labelValueGap);
             
-            // Draw value
-            this.ctx.font = `bold ${valueFontSize}px Inter, sans-serif`;
-            this.ctx.fillText(stat.value, currentX, currentY);
+            ctx.font = `bold ${valueFontSize}px Inter, sans-serif`;
+            ctx.fillText(stat.value, currentX, currentY);
             
             // Update position for next stat
             currentX += statWidth + horizontalGap;
@@ -415,40 +322,60 @@ class CyclingMediaGenerator {
             currentLineHeight = Math.max(currentLineHeight, statHeight);
         }
         
-        // Add the height of the last line
         maxHeightUsed += currentLineHeight;
-        
         return maxHeightUsed;
     }
 
-    drawBottomLeftTitle(title, bottomY, startX, maxWidth) {
-        // Adaptive font sizing for title
-        let fontSize = 48;
+    drawBottomLeftTitle(ctx, title, bottomY, startX, maxWidth, formatKey) {
+        // Scale font size based on format
+        const baseScale = formatKey === 'landscape' ? 0.7 : 1;
+        let fontSize = Math.floor(48 * baseScale);
         let lines = [];
         
         do {
-            this.ctx.font = `bold ${fontSize}px Inter, sans-serif`;
-            lines = this.wrapText(title, maxWidth);
+            ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+            lines = this.wrapText(ctx, title, maxWidth);
             fontSize -= 2;
-        } while (lines.length > 3 && fontSize > 20); // Max 3 lines, min 20px
+        } while (lines.length > 3 && fontSize > 20);
         
         // Draw title lines from bottom up
         const lineHeight = fontSize + 8;
         lines.forEach((line, index) => {
             const y = bottomY - ((lines.length - 1 - index) * lineHeight);
-            this.ctx.fillText(line, startX, y);
+            ctx.fillText(line, startX, y);
         });
     }
 
-    downloadImage() {
+    wrapText(ctx, text, maxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i];
+            const width = ctx.measureText(currentLine + ' ' + word).width;
+            if (width < maxWidth) {
+                currentLine += ' ' + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+        return lines;
+    }
+
+    downloadFormat(formatKey) {
+        const format = this.formats[formatKey];
         const link = document.createElement('a');
-        link.download = `cycling-post-${Date.now()}.png`;
-        link.href = this.canvas.toDataURL();
+        const formatName = formatKey.charAt(0).toUpperCase() + formatKey.slice(1);
+        link.download = `instagram-${formatKey}-${Date.now()}.png`;
+        link.href = format.canvas.toDataURL();
         link.click();
     }
 }
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new CyclingMediaGenerator();
+    new InstagramMediaGenerator();
 }); 
