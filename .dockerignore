@@ -1,0 +1,35 @@
+# Git files
+.git
+.gitignore
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Logs
+logs/
+docker/nginx/logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node modules if any
+node_modules/
+npm-debug.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation (not needed for running app)
+*.md 

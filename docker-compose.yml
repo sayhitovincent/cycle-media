@@ -1,0 +1,31 @@
+services:
+  cycling-media-app:
+    build: .
+    container_name: cycling-media-generator
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - cycling-media-network
+    volumes:
+      # Optional: Mount logs for debugging
+      - ./docker/nginx/logs:/var/log/nginx
+      # Mount src directory for live development
+      - ./src:/usr/share/nginx/html
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  cycling-media-network:
+    driver: bridge
+
+volumes:
+  logs:
+    driver: local 
