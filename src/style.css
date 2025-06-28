@@ -353,7 +353,35 @@ body {
 }
 
 /* Responsive design */
-@media (max-width: 1024px) {
+@media (max-width: 2000px) {
+    .formats-grid {
+        grid-template-columns: 2fr 1fr;
+        grid-template-rows: auto auto;
+        gap: 1rem;
+    }
+    
+    .format-section.square {
+        grid-column: 1;
+        grid-row: 1;
+    }
+    
+    .feed-formats-column {
+        grid-column: 2;
+        grid-row: 1;
+    }
+    
+    .format-section.story {
+        grid-column: 1;
+        grid-row: 2;
+    }
+    
+    .format-section.reel {
+        grid-column: 2;
+        grid-row: 2;
+    }
+}
+
+@media (max-width: 1400px) {
     .main-layout {
         flex-direction: column;
     }
@@ -366,18 +394,31 @@ body {
     }
     
     .formats-grid {
-        grid-template-columns: 1fr 1fr 1fr 1fr;
-        gap: 0.75rem;
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(5, auto);
+        gap: 1rem;
+    }
+    
+    .format-section.square,
+    .feed-formats-column,
+    .format-section.story,
+    .format-section.reel {
+        grid-column: 1;
+        grid-row: auto;
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 800px) {
     .top-banner {
         padding: 1rem;
     }
     
     .top-banner h1 {
         font-size: 1.5rem;
+    }
+    
+    .top-banner p {
+        font-size: 0.9rem;
     }
     
     .sidebar {
@@ -390,68 +431,11 @@ body {
     }
     
     .formats-grid {
-        grid-template-columns: 1fr 1fr 1fr;
-        grid-template-rows: auto auto;
-        gap: 0.5rem;
-    }
-    
-    .format-section.square {
-        grid-column: 1;
-        grid-row: 1 / 3;
-    }
-    
-    .feed-formats-column {
-        grid-column: 2;
-        grid-row: 1;
-    }
-    
-    .format-section.story {
-        grid-column: 3;
-        grid-row: 1;
-    }
-    
-    .format-section.reel {
-        grid-column: 2 / 4;
-        grid-row: 2;
+        gap: 0.75rem;
     }
     
     .format-details {
         padding: 0.75rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .top-banner h1 {
-        font-size: 1.25rem;
-    }
-    
-    .top-banner p {
-        font-size: 0.85rem;
-    }
-    
-    .sidebar {
-        padding: 0.75rem;
-        max-height: 200px;
-    }
-    
-    .content-area {
-        padding: 0.5rem;
-    }
-    
-    .formats-grid {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
-    }
-    
-    .format-section.square,
-    .feed-formats-column,
-    .format-section.story,
-    .format-section.reel {
-        grid-column: 1;
-    }
-    
-    .format-details {
-        padding: 0.5rem;
     }
     
     .format-header {
@@ -462,5 +446,15 @@ body {
     
     .download-btn {
         align-self: flex-end;
+        font-size: 0.75rem;
+        padding: 0.4rem 0.6rem;
+    }
+    
+    .format-details h3 {
+        font-size: 1rem;
+    }
+    
+    .format-specs {
+        font-size: 0.8rem;
     }
 } 
