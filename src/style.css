@@ -282,7 +282,7 @@ body {
 }
 
 .format-specs {
-    font-size: 0.9rem;
+    font-size: 0.81rem;
     color: #6b7280;
 }
 
@@ -314,6 +314,61 @@ body {
 
 .download-btn:hover {
     background: #5a67d8;
+}
+
+/* Position controls */
+.position-controls {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e5e7eb;
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.position-control-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.position-control-group label {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    min-width: 60px;
+    flex-shrink: 0;
+}
+
+.position-control {
+    flex: 1;
+    height: 4px;
+    border-radius: 2px;
+    background: #e5e7eb;
+    outline: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+.position-control::-webkit-slider-thumb {
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.position-control::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #667eea;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Canvas containers */
@@ -453,6 +508,11 @@ body {
     }
     
     .format-specs {
-        font-size: 0.8rem;
+        font-size: 0.72rem;
+    }
+    
+    .position-control-group label {
+        font-size: 0.7rem;
+        min-width: 50px;
     }
 } 

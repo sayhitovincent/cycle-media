@@ -12,9 +12,19 @@ class InstagramMediaGenerator {
         this.uploadedImages = [];
         this.selectedImageIndex = -1;
         
+        // Individual image positioning for each format
+        this.imagePositions = {
+            square: { offsetX: 0, offsetY: 0, scale: 1 },
+            portrait: { offsetX: 0, offsetY: 0, scale: 1 },
+            landscape: { offsetX: 0, offsetY: 0, scale: 1 },
+            story: { offsetX: 0, offsetY: 0, scale: 1 },
+            reel: { offsetX: 0, offsetY: 0, scale: 1 }
+        };
+        
         this.initializeElements();
         this.initializeCanvases();
         this.bindEvents();
+        this.updatePositionControls();
         this.generateAllPreviews();
     }
 
@@ -68,7 +78,9 @@ class InstagramMediaGenerator {
                 bg.classList.add('selected');
                 this.selectedBackground = bg.dataset.gradient;
                 this.selectedImageIndex = -1;
+                this.resetImagePositions();
                 this.updateImageGallery();
+                this.updatePositionControls();
                 this.generateAllPreviews();
             });
         });
@@ -79,6 +91,17 @@ class InstagramMediaGenerator {
                 const format = e.target.dataset.format;
                 if (format) {
                     this.downloadFormat(format);
+                }
+            }
+        });
+
+        // Image position controls (using event delegation)
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('position-control')) {
+                const format = e.target.dataset.format;
+                const controlType = e.target.dataset.control;
+                if (format && controlType) {
+                    this.updateImagePosition(format, controlType, parseFloat(e.target.value));
                 }
             }
         });
@@ -124,8 +147,46 @@ class InstagramMediaGenerator {
         this.selectedImageIndex = index;
         this.selectedBackground = null;
         document.querySelectorAll('.sample-bg').forEach(bg => bg.classList.remove('selected'));
+        this.resetImagePositions();
         this.updateImageGallery();
+        this.updatePositionControls();
         this.generateAllPreviews();
+    }
+
+    updateImagePosition(format, controlType, value) {
+        if (this.imagePositions[format]) {
+            this.imagePositions[format][controlType] = value;
+            this.generatePreview(format);
+        }
+    }
+
+    resetImagePositions() {
+        // Reset all image positions to default values
+        Object.keys(this.imagePositions).forEach(format => {
+            this.imagePositions[format] = { offsetX: 0, offsetY: 0, scale: 1 };
+        });
+    }
+
+    updatePositionControls() {
+        const hasImage = this.selectedImageIndex >= 0;
+        document.querySelectorAll('.position-controls').forEach(controls => {
+            controls.style.display = hasImage ? 'flex' : 'none';
+        });
+        
+        // Reset all position controls to current values
+        if (hasImage) {
+            Object.keys(this.imagePositions).forEach(format => {
+                const position = this.imagePositions[format];
+                
+                const offsetXControl = document.querySelector(`[data-format="${format}"][data-control="offsetX"]`);
+                const offsetYControl = document.querySelector(`[data-format="${format}"][data-control="offsetY"]`);
+                const scaleControl = document.querySelector(`[data-format="${format}"][data-control="scale"]`);
+                
+                if (offsetXControl) offsetXControl.value = position.offsetX;
+                if (offsetYControl) offsetYControl.value = position.offsetY;
+                if (scaleControl) scaleControl.value = position.scale;
+            });
+        }
     }
 
     generateAllPreviews() {
@@ -143,7 +204,7 @@ class InstagramMediaGenerator {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         // Draw background
-        this.drawBackground(ctx, canvas.width, canvas.height);
+        this.drawBackground(ctx, canvas.width, canvas.height, formatKey);
         
         // Draw overlay
         this.drawOverlay(ctx, canvas.width, canvas.height);
@@ -152,9 +213,9 @@ class InstagramMediaGenerator {
         this.drawContent(ctx, canvas.width, canvas.height, formatKey);
     }
 
-    drawBackground(ctx, width, height) {
+    drawBackground(ctx, width, height, formatKey) {
         if (this.selectedImageIndex >= 0 && this.uploadedImages[this.selectedImageIndex]) {
-            this.drawImageBackground(ctx, width, height, this.uploadedImages[this.selectedImageIndex]);
+            this.drawImageBackground(ctx, width, height, this.uploadedImages[this.selectedImageIndex], formatKey);
         } else if (this.selectedBackground) {
             this.drawGradientBackground(ctx, width, height, this.selectedBackground);
         } else {
@@ -162,23 +223,33 @@ class InstagramMediaGenerator {
         }
     }
 
-    drawImageBackground(ctx, width, height, img) {
+    drawImageBackground(ctx, width, height, img, formatKey) {
         const imgAspect = img.width / img.height;
         const canvasAspect = width / height;
+        const position = this.imagePositions[formatKey];
         
-        let drawWidth, drawHeight, offsetX, offsetY;
+        let baseDrawWidth, baseDrawHeight;
         
+        // Calculate base dimensions to cover the canvas
         if (imgAspect > canvasAspect) {
-            drawHeight = height;
-            drawWidth = height * imgAspect;
-            offsetX = (width - drawWidth) / 2;
-            offsetY = 0;
+            baseDrawHeight = height;
+            baseDrawWidth = height * imgAspect;
         } else {
-            drawWidth = width;
-            drawHeight = width / imgAspect;
-            offsetX = 0;
-            offsetY = (height - drawHeight) / 2;
+            baseDrawWidth = width;
+            baseDrawHeight = width / imgAspect;
         }
+        
+        // Apply scale
+        const drawWidth = baseDrawWidth * position.scale;
+        const drawHeight = baseDrawHeight * position.scale;
+        
+        // Calculate base centering offset
+        const baseCenterX = (width - drawWidth) / 2;
+        const baseCenterY = (height - drawHeight) / 2;
+        
+        // Apply user offset (convert from percentage to pixels)
+        const offsetX = baseCenterX + (position.offsetX / 100) * width;
+        const offsetY = baseCenterY + (position.offsetY / 100) * height;
         
         ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     }
