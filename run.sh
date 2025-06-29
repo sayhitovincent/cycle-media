@@ -46,7 +46,7 @@ start() {
     
     if [ $? -eq 0 ]; then
         print_success "Cycling Media Generator is running!"
-        print_status "Access the app at: http://localhost:3000"
+        print_status "Access the app at: http://localhost:8567"
         print_status "To view logs: ./run.sh logs"
         print_status "To stop: ./run.sh stop"
     else
@@ -111,7 +111,7 @@ show_help() {
     echo "  clean     Remove all containers and images"
     echo "  help      Show this help message"
     echo ""
-    echo "The application will be available at http://localhost:3000"
+    echo "The application will be available at http://localhost:8567"
 }
 
 # Main logic

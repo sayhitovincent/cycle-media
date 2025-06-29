@@ -1,3 +1,96 @@
+// Toast Notification System
+class ToastManager {
+    constructor() {
+        this.container = null;
+        this.init();
+    }
+
+    init() {
+        // Create toast container if it doesn't exist
+        this.container = document.querySelector('.toast-container');
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.className = 'toast-container';
+            document.body.appendChild(this.container);
+        }
+    }
+
+    show(message, type = 'info', title = null, duration = 5000) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+
+        const iconSymbols = {
+            success: '✓',
+            error: '✕',
+            warning: '!',
+            info: 'i'
+        };
+
+        const defaultTitles = {
+            success: 'Success',
+            error: 'Error',
+            warning: 'Warning',
+            info: 'Info'
+        };
+
+        const toastTitle = title || defaultTitles[type];
+        const iconSymbol = iconSymbols[type] || 'i';
+
+        toast.innerHTML = `
+            <div class="toast-icon">${iconSymbol}</div>
+            <div class="toast-content">
+                <div class="toast-title">${toastTitle}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close">&times;</button>
+        `;
+
+        // Add close functionality
+        const closeBtn = toast.querySelector('.toast-close');
+        closeBtn.addEventListener('click', () => this.hide(toast));
+
+        // Add to container
+        this.container.appendChild(toast);
+
+        // Auto-hide after duration
+        if (duration > 0) {
+            setTimeout(() => this.hide(toast), duration);
+        }
+
+        return toast;
+    }
+
+    hide(toast) {
+        if (!toast || !toast.parentNode) return;
+
+        toast.classList.add('hiding');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }
+
+    success(message, title = null, duration = 4000) {
+        return this.show(message, 'success', title, duration);
+    }
+
+    error(message, title = null, duration = 6000) {
+        return this.show(message, 'error', title, duration);
+    }
+
+    warning(message, title = null, duration = 5000) {
+        return this.show(message, 'warning', title, duration);
+    }
+
+    info(message, title = null, duration = 4000) {
+        return this.show(message, 'info', title, duration);
+    }
+}
+
+// Create global toast instance
+window.toast = new ToastManager();
+
 class InstagramMediaGenerator {
     constructor() {
         this.formats = {
@@ -11,6 +104,8 @@ class InstagramMediaGenerator {
         this.selectedBackground = null;
         this.uploadedImages = [];
         this.selectedImageIndex = -1;
+        this.draggedIndex = null;
+        this.squareSliderIndex = 0;
         
         // Individual image positioning for each format
         this.imagePositions = {
@@ -25,6 +120,7 @@ class InstagramMediaGenerator {
         this.initializeCanvases();
         this.bindEvents();
         this.updatePositionControls();
+        this.updateSquareSlider();
         this.generateAllPreviews();
     }
 
@@ -105,6 +201,18 @@ class InstagramMediaGenerator {
                 }
             }
         });
+
+        // Instagram slider controls
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'square-slider-prev' || e.target.closest('#square-slider-prev')) {
+                this.prevSquareSlide();
+            } else if (e.target.id === 'square-slider-next' || e.target.closest('#square-slider-next')) {
+                this.nextSquareSlide();
+            } else if (e.target.classList.contains('slider-dot')) {
+                const dotIndex = parseInt(e.target.dataset.index);
+                this.goToSquareSlide(dotIndex);
+            }
+        });
     }
 
     handleImageUpload(files) {
@@ -132,6 +240,11 @@ class InstagramMediaGenerator {
         gallery.innerHTML = '';
         
         this.uploadedImages.forEach((img, index) => {
+            const itemContainer = document.createElement('div');
+            itemContainer.classList.add('image-gallery-item');
+            itemContainer.draggable = true;
+            itemContainer.dataset.index = index;
+            
             const imgElement = document.createElement('img');
             imgElement.src = img.src;
             imgElement.classList.add('gallery-image');
@@ -139,7 +252,32 @@ class InstagramMediaGenerator {
                 imgElement.classList.add('selected');
             }
             imgElement.addEventListener('click', () => this.selectImage(index));
-            gallery.appendChild(imgElement);
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.classList.add('image-delete-btn');
+            deleteBtn.innerHTML = '×';
+            deleteBtn.title = 'Delete image';
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.deleteImage(index);
+            });
+            
+            const dragHandle = document.createElement('div');
+            dragHandle.classList.add('drag-handle');
+            dragHandle.innerHTML = '⋮⋮';
+            dragHandle.title = 'Drag to reorder';
+            
+            itemContainer.appendChild(imgElement);
+            itemContainer.appendChild(deleteBtn);
+            itemContainer.appendChild(dragHandle);
+            
+            // Add drag and drop event listeners
+            itemContainer.addEventListener('dragstart', (e) => this.handleDragStart(e));
+            itemContainer.addEventListener('dragover', (e) => this.handleDragOver(e));
+            itemContainer.addEventListener('drop', (e) => this.handleDrop(e));
+            itemContainer.addEventListener('dragend', (e) => this.handleDragEnd(e));
+            
+            gallery.appendChild(itemContainer);
         });
     }
 
@@ -150,7 +288,143 @@ class InstagramMediaGenerator {
         this.resetImagePositions();
         this.updateImageGallery();
         this.updatePositionControls();
+        this.updateSquareSlider();
         this.generateAllPreviews();
+    }
+
+    deleteImage(index) {
+        if (index >= 0 && index < this.uploadedImages.length) {
+            this.uploadedImages.splice(index, 1);
+            
+            // Update selected index if necessary
+            if (this.selectedImageIndex === index) {
+                this.selectedImageIndex = -1;
+                this.selectedBackground = 'gradient-1'; // Default to first gradient
+                document.querySelectorAll('.sample-bg')[0].classList.add('selected');
+            } else if (this.selectedImageIndex > index) {
+                this.selectedImageIndex--;
+            }
+            
+            this.resetImagePositions();
+            this.updateImageGallery();
+            this.updatePositionControls();
+            this.updateSquareSlider();
+            this.generateAllPreviews();
+            
+            window.toast.success('Image deleted successfully');
+        }
+    }
+
+    handleDragStart(e) {
+        this.draggedIndex = parseInt(e.target.dataset.index);
+        e.target.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target.outerHTML);
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        const targetIndex = parseInt(e.target.closest('.image-gallery-item').dataset.index);
+        
+        if (this.draggedIndex !== targetIndex) {
+            this.reorderImages(this.draggedIndex, targetIndex);
+        }
+    }
+
+    handleDragEnd(e) {
+        e.target.classList.remove('dragging');
+        this.draggedIndex = null;
+    }
+
+    reorderImages(fromIndex, toIndex) {
+        if (fromIndex === toIndex) return;
+        
+        // Move the image in the array
+        const movedImage = this.uploadedImages.splice(fromIndex, 1)[0];
+        this.uploadedImages.splice(toIndex, 0, movedImage);
+        
+        // Update selected index if necessary
+        if (this.selectedImageIndex === fromIndex) {
+            this.selectedImageIndex = toIndex;
+        } else if (this.selectedImageIndex > fromIndex && this.selectedImageIndex <= toIndex) {
+            this.selectedImageIndex--;
+        } else if (this.selectedImageIndex < fromIndex && this.selectedImageIndex >= toIndex) {
+            this.selectedImageIndex++;
+        }
+        
+        this.updateImageGallery();
+        this.updateSquareSlider();
+        this.generateAllPreviews();
+        
+        window.toast.success('Images reordered successfully');
+    }
+
+    // Instagram Slider functionality for Square format
+    updateSquareSlider() {
+        const sliderControls = document.getElementById('square-slider-controls');
+        const dotsContainer = document.getElementById('square-slider-dots');
+        
+        if (this.uploadedImages.length <= 1) {
+            sliderControls.classList.add('hidden');
+            return;
+        }
+        
+        sliderControls.classList.remove('hidden');
+        
+        // Update dots
+        dotsContainer.innerHTML = '';
+        this.uploadedImages.forEach((_, index) => {
+            const dot = document.createElement('div');
+            dot.classList.add('slider-dot');
+            dot.dataset.index = index;
+            if (index === this.squareSliderIndex) {
+                dot.classList.add('active');
+            }
+            dotsContainer.appendChild(dot);
+        });
+        
+        // Ensure slider index is within bounds
+        if (this.squareSliderIndex >= this.uploadedImages.length) {
+            this.squareSliderIndex = this.uploadedImages.length - 1;
+        }
+        if (this.squareSliderIndex < 0) {
+            this.squareSliderIndex = 0;
+        }
+    }
+
+    prevSquareSlide() {
+        if (this.uploadedImages.length <= 1) return;
+        
+        this.squareSliderIndex = this.squareSliderIndex > 0 
+            ? this.squareSliderIndex - 1 
+            : this.uploadedImages.length - 1;
+        
+        this.updateSquareSlider();
+        this.generatePreview('square');
+    }
+
+    nextSquareSlide() {
+        if (this.uploadedImages.length <= 1) return;
+        
+        this.squareSliderIndex = this.squareSliderIndex < this.uploadedImages.length - 1 
+            ? this.squareSliderIndex + 1 
+            : 0;
+        
+        this.updateSquareSlider();
+        this.generatePreview('square');
+    }
+
+    goToSquareSlide(index) {
+        if (index >= 0 && index < this.uploadedImages.length) {
+            this.squareSliderIndex = index;
+            this.updateSquareSlider();
+            this.generatePreview('square');
+        }
     }
 
     updateImagePosition(format, controlType, value) {
@@ -214,8 +488,11 @@ class InstagramMediaGenerator {
     }
 
     drawBackground(ctx, width, height, formatKey) {
-        if (this.selectedImageIndex >= 0 && this.uploadedImages[this.selectedImageIndex]) {
-            this.drawImageBackground(ctx, width, height, this.uploadedImages[this.selectedImageIndex], formatKey);
+        // Use slider index for square format, selectedImageIndex for others
+        let imageIndex = formatKey === 'square' ? this.squareSliderIndex : this.selectedImageIndex;
+        
+        if (imageIndex >= 0 && this.uploadedImages[imageIndex]) {
+            this.drawImageBackground(ctx, width, height, this.uploadedImages[imageIndex], formatKey);
         } else if (this.selectedBackground) {
             this.drawGradientBackground(ctx, width, height, this.selectedBackground);
         } else {
@@ -316,8 +593,6 @@ class InstagramMediaGenerator {
         // Draw standard content for all formats
         this.drawStandardContent(ctx, width, height, textColor, title, availableStats, formatKey);
     }
-
-
 
     drawStandardContent(ctx, width, height, color, title, availableStats, formatKey) {
         ctx.fillStyle = color;
@@ -474,5 +749,80 @@ class InstagramMediaGenerator {
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new InstagramMediaGenerator();
+    window.mediaGenerator = new InstagramMediaGenerator();
+});
+
+// Add Strava integration event listeners
+window.addEventListener('stravaActivityImported', (event) => {
+    const { activity, statsData } = event.detail;
+    
+    console.log('Activity imported:', activity);
+    console.log('Stats data:', statsData);
+    
+    // Update form fields with activity data
+    if (window.mediaGenerator) {
+        window.mediaGenerator.elements.titleText.value = statsData.title;
+        window.mediaGenerator.elements.distance.value = statsData.distance;
+        window.mediaGenerator.elements.time.value = statsData.time;
+        window.mediaGenerator.elements.elevation.value = statsData.elevation;
+        
+        // Regenerate previews with new data
+        window.mediaGenerator.generateAllPreviews();
+    }
+});
+
+window.addEventListener('stravaPhotoAddedToList', (event) => {
+    const { file, url, setAsBackground } = event.detail;
+    
+    console.log('Photo added to list:', { file, url, setAsBackground });
+    
+    // Add the imported photo to the existing media generator
+    if (window.mediaGenerator) {
+        // Convert file to image and add to uploaded images
+        const img = new Image();
+        img.onload = () => {
+            window.mediaGenerator.uploadedImages.push(img);
+            window.mediaGenerator.updateImageGallery();
+            window.mediaGenerator.updateSquareSlider();
+            
+            // If this should be set as background, select it
+            if (setAsBackground) {
+                window.mediaGenerator.selectImage(window.mediaGenerator.uploadedImages.length - 1);
+            }
+        };
+        img.src = URL.createObjectURL(file);
+    }
+});
+
+window.addEventListener('stravaPhotoImported', (event) => {
+    const { file, url } = event.detail;
+    
+    console.log('Photo imported:', { file, url });
+    
+         // Add the imported photo to the existing media generator
+     if (window.mediaGenerator) {
+         // Convert file to image and add to uploaded images
+         const img = new Image();
+         img.onload = () => {
+             window.mediaGenerator.uploadedImages.push(img);
+             window.mediaGenerator.updateImageGallery();
+             window.mediaGenerator.updateSquareSlider();
+             // Auto-select the imported image
+             window.mediaGenerator.selectImage(window.mediaGenerator.uploadedImages.length - 1);
+         };
+         img.src = URL.createObjectURL(file);
+     } else {
+         // Fallback: trigger file input change event
+         const fileInput = document.querySelector('#bg-upload');
+         if (fileInput) {
+             // Create a new FileList with the imported file
+             const dataTransfer = new DataTransfer();
+             dataTransfer.items.add(file);
+             fileInput.files = dataTransfer.files;
+             
+             // Trigger change event
+             const changeEvent = new Event('change', { bubbles: true });
+             fileInput.dispatchEvent(changeEvent);
+         }
+     }
 }); 

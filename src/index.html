@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Instagram Media Generator</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="strava-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -19,6 +20,21 @@
             <!-- Left Sidebar -->
             <aside class="sidebar">
                 <div class="controls">
+                    <div class="control-group featured-images-section">
+                        <label>Featured Images</label>
+                        <input type="file" id="bg-upload" accept="image/*" multiple>
+                        <div class="image-gallery" id="image-gallery"></div>
+                        
+                        <div class="sample-backgrounds">
+                            <h4>Sample Backgrounds:</h4>
+                            <div class="sample-grid">
+                                <div class="sample-bg gradient-1" data-gradient="gradient-1">Gradient 1</div>
+                                <div class="sample-bg gradient-2" data-gradient="gradient-2">Gradient 2</div>
+                                <div class="sample-bg gradient-3" data-gradient="gradient-3">Gradient 3</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="control-group">
                         <label for="title-text">Title</label>
                         <input type="text" id="title-text" placeholder="Enter your post title" value="200km? Hectic">
@@ -37,21 +53,6 @@
                     <div class="control-group">
                         <label for="elevation">Elevation Gain</label>
                         <input type="text" id="elevation" placeholder="e.g., 450m" value="1,406 m">
-                    </div>
-
-                    <div class="control-group">
-                        <label>Background Image</label>
-                        <input type="file" id="bg-upload" accept="image/*" multiple>
-                        <div class="image-gallery" id="image-gallery"></div>
-                        
-                        <div class="sample-backgrounds">
-                            <h4>Sample Backgrounds:</h4>
-                            <div class="sample-grid">
-                                <div class="sample-bg gradient-1" data-gradient="gradient-1">Gradient 1</div>
-                                <div class="sample-bg gradient-2" data-gradient="gradient-2">Gradient 2</div>
-                                <div class="sample-bg gradient-3" data-gradient="gradient-3">Gradient 3</div>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="control-group">
@@ -74,6 +75,21 @@
                     <div class="format-section square">
                         <div class="canvas-container">
                             <canvas id="square-canvas" width="1080" height="1080"></canvas>
+                            
+                            <!-- Instagram-style slider controls -->
+                            <div class="instagram-slider-controls" id="square-slider-controls">
+                                <button class="slider-arrow slider-prev" id="square-slider-prev">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <button class="slider-arrow slider-next" id="square-slider-next">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                        <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <div class="slider-dots" id="square-slider-dots"></div>
+                            </div>
                         </div>
                         <div class="format-details">
                             <div class="format-header">
@@ -243,5 +259,6 @@
     </div>
 
     <script src="script.js"></script>
+    <script src="strava-integration.js"></script>
 </body>
 </html> 

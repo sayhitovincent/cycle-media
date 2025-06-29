@@ -1,0 +1,391 @@
+/* Strava Integration Styles */
+
+/* Sidebar Connect Section */
+.strava-connect-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* Modal Styles */
+.strava-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 16px;
+    max-width: 90vw;
+    max-height: 85vh;
+    width: 1200px;
+    overflow: hidden;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.modal-close:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.modal-body {
+    padding: 2rem;
+    max-height: calc(80vh - 140px);
+    overflow-y: auto;
+}
+
+.strava-powered-logo {
+    height: 40px;
+    width: auto;
+}
+
+.strava-connect-btn {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.strava-connect-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.strava-connect-btn:hover rect {
+    fill: #E23902;
+}
+
+.strava-auth {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.strava-btn {
+    background: #FC4C02;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.strava-btn:hover {
+    background: #E23902;
+}
+
+.strava-user {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.strava-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.browse-btn {
+    background: #FC4C02;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.browse-btn:hover {
+    background: #E23902;
+}
+
+.logout-btn {
+    background: #6b7280;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    flex: 1;
+}
+
+.logout-btn:hover {
+    background: #4b5563;
+}
+
+/* Activities in Modal */
+.activities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.activity-section {
+    background: #f9fafb;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.activity-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.activity-title-section h3 {
+    margin: 0 0 0.5rem 0;
+    color: #1f2937;
+    font-size: 1.25rem;
+}
+
+.activity-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.activity-type {
+    background: #FC4C02;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.activity-stats {
+    font-weight: 500;
+    color: #374151;
+}
+
+.photo-count {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+}
+
+.stat span {
+    font-size: 1.125rem;
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.activity-photos h4 {
+    margin: 0 0 1rem 0;
+    color: #1f2937;
+}
+
+
+
+.activity-photos {
+    margin-top: 1rem;
+}
+
+.photos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.photo-item {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.photo-item:hover {
+    transform: scale(1.05);
+}
+
+.activity-photo {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+}
+
+.import-activity-btn {
+    background: #FC4C02;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.import-activity-btn:hover:not(:disabled) {
+    background: #E23902;
+}
+
+.import-activity-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+
+
+.loading, .error, .no-activities, .no-photos {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.error {
+    color: #dc2626;
+}
+
+.load-photos-placeholder {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+}
+
+.load-photos-btn {
+    background: #FC4C02;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.load-photos-btn:hover:not(:disabled) {
+    background: #E23902;
+    transform: translateY(-1px);
+}
+
+.load-photos-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .modal-content {
+        max-width: 98vw;
+        max-height: 95vh;
+        margin: 0 0.5rem;
+        width: auto;
+    }
+    
+    .modal-header {
+        padding: 1rem 1.5rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .activity-section {
+        padding: 1rem;
+    }
+    
+    .activity-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .activity-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .import-activity-btn {
+        align-self: flex-end;
+    }
+    
+    .import-activity-btn {
+        width: 100%;
+        padding: 1rem;
+    }
+    
+    #strava-login-btn {
+        width: 100%;
+        height: auto;
+    }
+} 

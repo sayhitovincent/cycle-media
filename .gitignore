@@ -39,6 +39,9 @@ build/
 downloads/
 generated-images/
 
+# Strava image cache
+tmp/
+
 # Backup files
 *.bak
 *.backup 
