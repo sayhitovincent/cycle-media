@@ -262,16 +262,33 @@ class InstagramMediaGenerator {
             statsHeight = this.drawBottomLeftStats(ctx, availableStats, statsBottomY, margin, width - (margin * 2), formatKey);
         }
         
-        // Draw title 60px above stats, bottom-left aligned
+        // Draw title above stats, bottom-left aligned - scale gap for non-square formats
         if (title) {
-            const titleBottomY = height - margin - statsHeight - Math.max(60, height * 0.03);
+            let titleGap;
+            if (formatKey === 'square') {
+                titleGap = Math.max(66, height * 0.033); // increased by 10%
+            } else if (formatKey === 'landscape') {
+                titleGap = Math.max(91, height * 0.046); // increased by 30%
+            } else {
+                titleGap = Math.max(104, height * 0.052); // increased by 30% for portrait, story, reel
+            }
+            
+            const titleBottomY = height - margin - statsHeight - titleGap;
             this.drawBottomLeftTitle(ctx, title, titleBottomY, margin, width - (margin * 2), formatKey);
         }
     }
 
     drawBottomLeftStats(ctx, stats, bottomY, startX, maxWidth, formatKey) {
-        // Scale font sizes based on format
-        const baseScale = formatKey === 'landscape' ? 0.8 : 1;
+        // Scale font sizes based on format - increase sizes for all except square
+        let baseScale;
+        if (formatKey === 'square') {
+            baseScale = 1.1; // increased by 10%
+        } else if (formatKey === 'landscape') {
+            baseScale = 1.859; // 1.43 * 1.3 = increased by another 30%
+        } else {
+            baseScale = 2.197; // 1.69 * 1.3 = increased by another 30% (portrait, story, reel)
+        }
+        
         const labelFontSize = Math.floor(18 * baseScale);
         const valueFontSize = Math.floor(36 * baseScale);
         const horizontalGap = Math.floor(40 * baseScale);
@@ -327,8 +344,16 @@ class InstagramMediaGenerator {
     }
 
     drawBottomLeftTitle(ctx, title, bottomY, startX, maxWidth, formatKey) {
-        // Scale font size based on format
-        const baseScale = formatKey === 'landscape' ? 0.7 : 1;
+        // Scale font size based on format - increase sizes for all except square
+        let baseScale;
+        if (formatKey === 'square') {
+            baseScale = 1.1; // increased by 10%
+        } else if (formatKey === 'landscape') {
+            baseScale = 1.43; // 1.1 * 1.3 = increased by 30%
+        } else {
+            baseScale = 1.69; // 1.3 * 1.3 = increased by 30% (portrait, story, reel)
+        }
+        
         let fontSize = Math.floor(48 * baseScale);
         let lines = [];
         
@@ -338,8 +363,9 @@ class InstagramMediaGenerator {
             fontSize -= 2;
         } while (lines.length > 3 && fontSize > 20);
         
-        // Draw title lines from bottom up
-        const lineHeight = fontSize + 8;
+        // Draw title lines from bottom up - scale line height for better spacing
+        const lineHeightGap = formatKey === 'square' ? 8 : Math.floor(12 * baseScale);
+        const lineHeight = fontSize + lineHeightGap;
         lines.forEach((line, index) => {
             const y = bottomY - ((lines.length - 1 - index) * lineHeight);
             ctx.fillText(line, startX, y);
