@@ -163,10 +163,43 @@
     transition: background-color 0.2s;
     flex: 1;
     font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 42px;
 }
 
-.browse-btn:hover {
+.browse-btn:hover:not(:disabled) {
     background: #E23902;
+}
+
+.browse-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.browse-btn.loading {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+.loading-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #ffffff40;
+    border-top: 2px solid #ffffff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .logout-btn {
@@ -274,6 +307,7 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    line-height: 0;
 }
 
 .photo-item img {
