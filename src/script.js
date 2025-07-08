@@ -109,7 +109,7 @@ class InstagramMediaGenerator {
         
         // Individual image positioning for each format
         this.imagePositions = {
-            square: { offsetX: 0, offsetY: 0, scale: 1 },
+            square: [], // Array of positions for each image in square slider
             portrait: { offsetX: 0, offsetY: 0, scale: 1 },
             landscape: { offsetX: 0, offsetY: 0, scale: 1 },
             story: { offsetX: 0, offsetY: 0, scale: 1 },
@@ -296,6 +296,11 @@ class InstagramMediaGenerator {
         if (index >= 0 && index < this.uploadedImages.length) {
             this.uploadedImages.splice(index, 1);
             
+            // Remove corresponding position settings for square format
+            if (this.imagePositions.square.length > index) {
+                this.imagePositions.square.splice(index, 1);
+            }
+            
             // Update selected index if necessary
             if (this.selectedImageIndex === index) {
                 this.selectedImageIndex = -1;
@@ -303,6 +308,11 @@ class InstagramMediaGenerator {
                 document.querySelectorAll('.sample-bg')[0].classList.add('selected');
             } else if (this.selectedImageIndex > index) {
                 this.selectedImageIndex--;
+            }
+            
+            // Update square slider index if necessary
+            if (this.squareSliderIndex >= this.uploadedImages.length) {
+                this.squareSliderIndex = Math.max(0, this.uploadedImages.length - 1);
             }
             
             this.resetImagePositions();
@@ -348,6 +358,12 @@ class InstagramMediaGenerator {
         const movedImage = this.uploadedImages.splice(fromIndex, 1)[0];
         this.uploadedImages.splice(toIndex, 0, movedImage);
         
+        // Move the corresponding position settings for square format
+        if (this.imagePositions.square.length > fromIndex) {
+            const movedPosition = this.imagePositions.square.splice(fromIndex, 1)[0];
+            this.imagePositions.square.splice(toIndex, 0, movedPosition);
+        }
+        
         // Update selected index if necessary
         if (this.selectedImageIndex === fromIndex) {
             this.selectedImageIndex = toIndex;
@@ -357,8 +373,18 @@ class InstagramMediaGenerator {
             this.selectedImageIndex++;
         }
         
+        // Update square slider index if necessary
+        if (this.squareSliderIndex === fromIndex) {
+            this.squareSliderIndex = toIndex;
+        } else if (this.squareSliderIndex > fromIndex && this.squareSliderIndex <= toIndex) {
+            this.squareSliderIndex--;
+        } else if (this.squareSliderIndex < fromIndex && this.squareSliderIndex >= toIndex) {
+            this.squareSliderIndex++;
+        }
+        
         this.updateImageGallery();
         this.updateSquareSlider();
+        this.updatePositionControls(); // Update position controls for potentially new current image
         this.generateAllPreviews();
         
         window.toast.success('Images reordered successfully');
@@ -375,6 +401,16 @@ class InstagramMediaGenerator {
         }
         
         sliderControls.classList.remove('hidden');
+        
+        // Ensure we have position settings for all images
+        while (this.imagePositions.square.length < this.uploadedImages.length) {
+            this.imagePositions.square.push({ offsetX: 0, offsetY: 0, scale: 1 });
+        }
+        
+        // Remove excess position settings if images were deleted
+        if (this.imagePositions.square.length > this.uploadedImages.length) {
+            this.imagePositions.square = this.imagePositions.square.slice(0, this.uploadedImages.length);
+        }
         
         // Update dots
         dotsContainer.innerHTML = '';
@@ -405,6 +441,7 @@ class InstagramMediaGenerator {
             : this.uploadedImages.length - 1;
         
         this.updateSquareSlider();
+        this.updatePositionControls(); // Update position controls for new image
         this.generatePreview('square');
     }
 
@@ -416,6 +453,7 @@ class InstagramMediaGenerator {
             : 0;
         
         this.updateSquareSlider();
+        this.updatePositionControls(); // Update position controls for new image
         this.generatePreview('square');
     }
 
@@ -423,12 +461,19 @@ class InstagramMediaGenerator {
         if (index >= 0 && index < this.uploadedImages.length) {
             this.squareSliderIndex = index;
             this.updateSquareSlider();
+            this.updatePositionControls(); // Update position controls for new image
             this.generatePreview('square');
         }
     }
 
     updateImagePosition(format, controlType, value) {
-        if (this.imagePositions[format]) {
+        if (format === 'square') {
+            // For square format, update the current slider image's position
+            if (this.imagePositions.square[this.squareSliderIndex]) {
+                this.imagePositions.square[this.squareSliderIndex][controlType] = value;
+                this.generatePreview(format);
+            }
+        } else if (this.imagePositions[format]) {
             this.imagePositions[format][controlType] = value;
             this.generatePreview(format);
         }
@@ -437,12 +482,17 @@ class InstagramMediaGenerator {
     resetImagePositions() {
         // Reset all image positions to default values
         Object.keys(this.imagePositions).forEach(format => {
-            this.imagePositions[format] = { offsetX: 0, offsetY: 0, scale: 1 };
+            if (format === 'square') {
+                // For square, reset all image positions in the array
+                this.imagePositions.square = this.uploadedImages.map(() => ({ offsetX: 0, offsetY: 0, scale: 1 }));
+            } else {
+                this.imagePositions[format] = { offsetX: 0, offsetY: 0, scale: 1 };
+            }
         });
     }
 
     updatePositionControls() {
-        const hasImage = this.selectedImageIndex >= 0;
+        const hasImage = this.selectedImageIndex >= 0 || this.uploadedImages.length > 0;
         document.querySelectorAll('.position-controls').forEach(controls => {
             controls.style.display = hasImage ? 'flex' : 'none';
         });
@@ -450,7 +500,14 @@ class InstagramMediaGenerator {
         // Reset all position controls to current values
         if (hasImage) {
             Object.keys(this.imagePositions).forEach(format => {
-                const position = this.imagePositions[format];
+                let position;
+                
+                if (format === 'square') {
+                    // For square format, use the current slider image's position
+                    position = this.imagePositions.square[this.squareSliderIndex] || { offsetX: 0, offsetY: 0, scale: 1 };
+                } else {
+                    position = this.imagePositions[format];
+                }
                 
                 const offsetXControl = document.querySelector(`[data-format="${format}"][data-control="offsetX"]`);
                 const offsetYControl = document.querySelector(`[data-format="${format}"][data-control="offsetY"]`);
@@ -480,8 +537,10 @@ class InstagramMediaGenerator {
         // Draw background
         this.drawBackground(ctx, canvas.width, canvas.height, formatKey);
         
-        // Draw overlay
-        this.drawOverlay(ctx, canvas.width, canvas.height);
+        // Draw overlay (only on first image for square format)
+        if (formatKey !== 'square' || this.squareSliderIndex === 0) {
+            this.drawOverlay(ctx, canvas.width, canvas.height);
+        }
         
         // Draw content
         this.drawContent(ctx, canvas.width, canvas.height, formatKey);
@@ -503,7 +562,14 @@ class InstagramMediaGenerator {
     drawImageBackground(ctx, width, height, img, formatKey) {
         const imgAspect = img.width / img.height;
         const canvasAspect = width / height;
-        const position = this.imagePositions[formatKey];
+        
+        let position;
+        if (formatKey === 'square') {
+            // For square format, use the current slider image's position
+            position = this.imagePositions.square[this.squareSliderIndex] || { offsetX: 0, offsetY: 0, scale: 1 };
+        } else {
+            position = this.imagePositions[formatKey];
+        }
         
         let baseDrawWidth, baseDrawHeight;
         
@@ -576,6 +642,11 @@ class InstagramMediaGenerator {
     }
 
     drawContent(ctx, width, height, formatKey) {
+        // For square format, only draw title/stats on the first image (index 0)
+        if (formatKey === 'square' && this.squareSliderIndex !== 0) {
+            return; // Skip drawing content for non-first images in square slideshow
+        }
+        
         const textColor = this.elements.textColor.value;
         
         // Get content

@@ -1,29 +1,14 @@
 const express = require('express');
-const cors = require('cors');
-const session = require('express-session');
-const cookieParser = require('cookie-parser');
 const axios = require('axios');
-const fs = require('fs').promises;
-const path = require('path');
-const crypto = require('crypto');
-require('dotenv').config();
+const {
+    getApiCacheKey,
+    getApiCachedResponse,
+    setApiCachedResponse,
+    getCachedImage,
+    setCachedImage
+} = require('./cache');
 
-const app = express();
-const PORT = process.env.PORT || 3001;
-
-// Middleware
-app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:8567',
-    credentials: true
-}));
-app.use(express.json());
-app.use(cookieParser());
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 hours
-}));
+const router = express.Router();
 
 // Store user tokens (in production, use a database)
 const userTokens = {};
@@ -38,94 +23,13 @@ const STRAVA_CONFIG = {
     apiUrl: 'https://www.strava.com/api/v3'
 };
 
-// Cache configuration
-const CACHE_CONFIG = {
-    baseDir: '/tmp/strava-images',
-    // No expiration - Strava URLs are unique so we can cache indefinitely
-};
-
-// Cache utility functions
-async function ensureCacheDir(userId) {
-    const userCacheDir = path.join(CACHE_CONFIG.baseDir, userId.toString());
-    try {
-        await fs.mkdir(userCacheDir, { recursive: true });
-        return userCacheDir;
-    } catch (error) {
-        console.error('Failed to create cache directory:', error);
-        throw error;
-    }
-}
-
-function getCacheKey(url) {
-    return crypto.createHash('md5').update(url).digest('hex');
-}
-
-async function getCachedImage(userId, url) {
-    try {
-        const userCacheDir = await ensureCacheDir(userId);
-        const cacheKey = getCacheKey(url);
-        const cachePath = path.join(userCacheDir, `${cacheKey}.jpg`);
-        const metaPath = path.join(userCacheDir, `${cacheKey}.meta`);
-        
-        // Check if cache file exists
-        const [imageStats, metaStats] = await Promise.all([
-            fs.stat(cachePath).catch(() => null),
-            fs.stat(metaPath).catch(() => null)
-        ]);
-        
-        if (!imageStats || !metaStats) {
-            return null; // Cache miss
-        }
-        
-        // Since Strava URLs are unique, we cache indefinitely
-        // Read metadata
-        const metaData = JSON.parse(await fs.readFile(metaPath, 'utf-8'));
-        
-        return {
-            path: cachePath,
-            contentType: metaData.contentType || 'image/jpeg',
-            originalUrl: metaData.originalUrl,
-            cachedAt: metaData.cachedAt
-        };
-    } catch (error) {
-        console.error('Cache read error:', error);
-        return null;
-    }
-}
-
-async function setCachedImage(userId, url, imageBuffer, contentType) {
-    try {
-        const userCacheDir = await ensureCacheDir(userId);
-        const cacheKey = getCacheKey(url);
-        const cachePath = path.join(userCacheDir, `${cacheKey}.jpg`);
-        const metaPath = path.join(userCacheDir, `${cacheKey}.meta`);
-        
-        // Save image and metadata
-        const metaData = {
-            originalUrl: url,
-            contentType: contentType || 'image/jpeg',
-            cachedAt: new Date().toISOString()
-        };
-        
-        await Promise.all([
-            fs.writeFile(cachePath, imageBuffer),
-            fs.writeFile(metaPath, JSON.stringify(metaData, null, 2))
-        ]);
-        
-        return cachePath;
-    } catch (error) {
-        console.error('Cache write error:', error);
-        throw error;
-    }
-}
-
 // OAuth Routes
-app.get('/auth/strava', (req, res) => {
+router.get('/auth/strava', (req, res) => {
     const authUrl = `${STRAVA_CONFIG.authUrl}?client_id=${STRAVA_CONFIG.clientId}&response_type=code&redirect_uri=${STRAVA_CONFIG.redirectUri}&approval_prompt=force&scope=read,activity:read_all`;
     res.redirect(authUrl);
 });
 
-app.get('/auth/strava/callback', async (req, res) => {
+router.get('/auth/strava/callback', async (req, res) => {
     const { code } = req.query;
     
     if (!code) {
@@ -158,7 +62,7 @@ app.get('/auth/strava/callback', async (req, res) => {
 });
 
 // API Routes
-app.get('/api/user', (req, res) => {
+router.get('/api/user', (req, res) => {
     if (!req.session.userId || !userTokens[req.session.userId]) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
@@ -174,9 +78,19 @@ app.get('/api/user', (req, res) => {
     });
 });
 
-app.get('/api/activities', async (req, res) => {
+router.get('/api/activities', async (req, res) => {
     if (!req.session.userId || !userTokens[req.session.userId]) {
         return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userId = req.session.userId;
+    const cacheKey = getApiCacheKey(userId, 'activities', { per_page: 30, page: 1 });
+    
+    // Check cache first
+    const cachedResponse = getApiCachedResponse(cacheKey);
+    if (cachedResponse) {
+        res.set('X-Cache', 'HIT');
+        return res.json(cachedResponse);
     }
 
     try {
@@ -194,7 +108,7 @@ app.get('/api/activities', async (req, res) => {
         // Filter for activities with photos
         const activitiesWithPhotos = response.data.filter(activity => activity.total_photo_count > 0);
         
-        res.json(activitiesWithPhotos.map(activity => ({
+        const processedActivities = activitiesWithPhotos.map(activity => ({
             id: activity.id,
             name: activity.name,
             type: activity.type,
@@ -210,7 +124,13 @@ app.get('/api/activities', async (req, res) => {
             max_heartrate: activity.max_heartrate,
             total_photo_count: activity.total_photo_count,
             map: activity.map
-        })));
+        }));
+        
+        // Cache the response
+        setApiCachedResponse(cacheKey, processedActivities);
+        
+        res.set('X-Cache', 'MISS');
+        res.json(processedActivities);
     } catch (error) {
         console.error('Activities fetch error:', error.response?.data || error.message);
         if (error.response?.status === 401) {
@@ -220,14 +140,24 @@ app.get('/api/activities', async (req, res) => {
     }
 });
 
-app.get('/api/activities/:id', async (req, res) => {
+router.get('/api/activities/:id', async (req, res) => {
     if (!req.session.userId || !userTokens[req.session.userId]) {
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
+    const userId = req.session.userId;
+    const activityId = req.params.id;
+    const cacheKey = getApiCacheKey(userId, `activity_${activityId}`, { size: 2048 });
+    
+    // Check cache first
+    const cachedResponse = getApiCachedResponse(cacheKey);
+    if (cachedResponse) {
+        res.set('X-Cache', 'HIT');
+        return res.json(cachedResponse);
+    }
+
     try {
         const user = userTokens[req.session.userId];
-        const activityId = req.params.id;
         
         // Fetch detailed activity data
         const [activityResponse, photosResponse] = await Promise.all([
@@ -243,7 +173,7 @@ app.get('/api/activities/:id', async (req, res) => {
         const activity = activityResponse.data;
         const photos = photosResponse.data;
 
-        res.json({
+        const processedActivity = {
             id: activity.id,
             name: activity.name,
             description: activity.description,
@@ -302,7 +232,13 @@ app.get('/api/activities/:id', async (req, res) => {
                 // Use the highest resolution available
                 url: photo.urls?.['2048'] || photo.urls?.['1024'] || photo.urls?.['600'] || photo.urls?.['300']
             }))
-        });
+        };
+        
+        // Cache the response
+        setApiCachedResponse(cacheKey, processedActivity);
+        
+        res.set('X-Cache', 'MISS');
+        res.json(processedActivity);
     } catch (error) {
         console.error('Activity detail fetch error:', error.response?.data || error.message);
         if (error.response?.status === 401) {
@@ -313,7 +249,7 @@ app.get('/api/activities/:id', async (req, res) => {
 });
 
 // Image proxy with caching to handle CORS and reduce API calls
-app.get('/api/proxy-image', async (req, res) => {
+router.get('/api/proxy-image', async (req, res) => {
     try {
         const imageUrl = req.query.url;
         if (!imageUrl) {
@@ -403,7 +339,7 @@ app.get('/api/proxy-image', async (req, res) => {
     }
 });
 
-app.post('/api/logout', (req, res) => {
+router.post('/api/logout', (req, res) => {
     if (req.session.userId) {
         delete userTokens[req.session.userId];
         req.session.destroy();
@@ -411,101 +347,8 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// Cache management endpoints
-app.get('/api/cache/status', async (req, res) => {
-    if (!req.session.userId) {
-        return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    try {
-        const userId = req.session.userId;
-        const userCacheDir = path.join(CACHE_CONFIG.baseDir, userId.toString());
-        
-        try {
-            const files = await fs.readdir(userCacheDir);
-            const imageFiles = files.filter(file => file.endsWith('.jpg'));
-            const metaFiles = files.filter(file => file.endsWith('.meta'));
-            
-            // Get total cache size
-            let totalSize = 0;
-            for (const file of files) {
-                const filePath = path.join(userCacheDir, file);
-                const stats = await fs.stat(filePath).catch(() => null);
-                if (stats) totalSize += stats.size;
-            }
-            
-            res.json({
-                userId: userId,
-                cachedImages: imageFiles.length,
-                metaFiles: metaFiles.length,
-                totalSizeBytes: totalSize,
-                totalSizeMB: Math.round(totalSize / 1024 / 1024 * 100) / 100,
-                cacheDir: userCacheDir,
-                cachePolicy: 'indefinite - URLs are unique'
-            });
-        } catch (error) {
-            // Cache directory doesn't exist yet
-            res.json({
-                userId: userId,
-                cachedImages: 0,
-                metaFiles: 0,
-                totalSizeBytes: 0,
-                totalSizeMB: 0,
-                cacheDir: userCacheDir,
-                cachePolicy: 'indefinite - URLs are unique'
-            });
-        }
-    } catch (error) {
-        console.error('Cache status error:', error);
-        res.status(500).json({ error: 'Failed to get cache status' });
-    }
-});
-
-app.delete('/api/cache/clear', async (req, res) => {
-    if (!req.session.userId) {
-        return res.status(401).json({ error: 'Not authenticated' });
-    }
-
-    try {
-        const userId = req.session.userId;
-        const userCacheDir = path.join(CACHE_CONFIG.baseDir, userId.toString());
-        
-        try {
-            const files = await fs.readdir(userCacheDir);
-            let deletedCount = 0;
-            
-            for (const file of files) {
-                const filePath = path.join(userCacheDir, file);
-                await fs.unlink(filePath);
-                deletedCount++;
-            }
-            
-            res.json({ 
-                message: 'Cache cleared successfully',
-                deletedFiles: deletedCount,
-                userId: userId
-            });
-        } catch (error) {
-            // Cache directory doesn't exist
-            res.json({ 
-                message: 'No cache to clear',
-                deletedFiles: 0,
-                userId: userId
-            });
-        }
-    } catch (error) {
-        console.error('Cache clear error:', error);
-        res.status(500).json({ error: 'Failed to clear cache' });
-    }
-});
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
-});
-
 // Strava branding requirements endpoint
-app.get('/api/strava-branding', (req, res) => {
+router.get('/api/strava-branding', (req, res) => {
     res.json({
         requirements: {
             logo: 'Must display "Powered by Strava" logo',
@@ -522,8 +365,18 @@ app.get('/api/strava-branding', (req, res) => {
     });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Cycling Media Backend running on port ${PORT}`);
-    console.log(`🔑 Strava OAuth: ${STRAVA_CONFIG.authUrl}`);
-    console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:8567'}`);
-}); 
+// Helper function to get user tokens (for use by other modules)
+function getUserTokens() {
+    return userTokens;
+}
+
+// Helper function to get Strava config (for use by other modules)
+function getStravaConfig() {
+    return STRAVA_CONFIG;
+}
+
+module.exports = {
+    router,
+    getUserTokens,
+    getStravaConfig
+}; 

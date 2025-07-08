@@ -46,10 +46,16 @@
     font-size: 1.5rem;
 }
 
-.modal-close {
+.modal-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.modal-close, .modal-refresh {
     background: none;
     border: none;
-    font-size: 2rem;
+    font-size: 1.5rem;
     color: #6b7280;
     cursor: pointer;
     padding: 0;
@@ -62,9 +68,18 @@
     transition: all 0.2s;
 }
 
-.modal-close:hover {
+.modal-close {
+    font-size: 2rem;
+}
+
+.modal-close:hover, .modal-refresh:hover:not(:disabled) {
     background: #e5e7eb;
     color: #374151;
+}
+
+.modal-refresh:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .modal-body {
@@ -80,12 +95,11 @@
 
 .strava-connect-btn {
     cursor: pointer;
-    transition: all 0.2s;
+    transition: opacity 0.2s;
 }
 
 .strava-connect-btn:hover {
     opacity: 0.9;
-    transform: translateY(-1px);
 }
 
 .strava-connect-btn:hover rect {
@@ -171,6 +185,8 @@
     background: #4b5563;
 }
 
+
+
 /* Activities in Modal */
 .activities-list {
     display: flex;
@@ -192,6 +208,12 @@
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid #e5e7eb;
+}
+
+.activity-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .activity-title-section h3 {
@@ -223,11 +245,7 @@
     color: #374151;
 }
 
-.photo-count {
-    color: #6b7280;
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
-}
+/* Photo count is now inline with activity stats - removed separate styling */
 
 .stat span {
     font-size: 1.125rem;
@@ -254,20 +272,70 @@
 
 .photo-item {
     position: relative;
-    border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
-    transition: transform 0.2s ease;
+}
+
+.photo-item img {
+    border-radius: 8px;
 }
 
 .photo-item:hover {
-    transform: scale(1.05);
 }
 
 .activity-photo {
     width: 100%;
     height: 160px;
     object-fit: cover;
+}
+
+/* Photo placeholders and skeleton loading */
+.photo-placeholder {
+    position: relative;
+    overflow: hidden;
+}
+
+.activity-photo-placeholder {
+    width: 100%;
+    height: 160px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.photo-skeleton {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.remaining-photos-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f9fafb;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    cursor: default;
+}
+
+.remaining-photos-count {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-align: center;
 }
 
 .import-activity-btn {
@@ -290,6 +358,45 @@
 .import-activity-btn:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+}
+
+.refresh-activity-btn {
+    background: #f59e0b;
+    color: white;
+    border: none;
+    padding: 0.75rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-activity-btn:hover:not(:disabled) {
+    background: #d97706;
+}
+
+.refresh-activity-btn:disabled {
+    background: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Spinning animation */
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
 }
 
 
@@ -330,7 +437,6 @@
 
 .load-photos-btn:hover:not(:disabled) {
     background: #E23902;
-    transform: translateY(-1px);
 }
 
 .load-photos-btn:disabled {
@@ -382,6 +488,26 @@
     .import-activity-btn {
         width: 100%;
         padding: 1rem;
+    }
+    
+    .activity-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .refresh-activity-btn {
+        width: 50px;
+        height: 50px;
+        padding: 1rem;
+    }
+    
+    .modal-header-actions {
+        gap: 0.75rem;
+    }
+    
+    .modal-close, .modal-refresh {
+        width: 40px;
+        height: 40px;
     }
     
     #strava-login-btn {
