@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Integrations - Instagram Media Generator</title>
+    
+    <!-- Cache Control - Force refresh on mobile -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="integrations-styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -208,6 +215,23 @@
             </div>
         </main>
     </div>
+    
+    <!-- Cache busting for mobile refresh -->
+    <script>
+        // Force cache refresh on mobile
+        if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            const timestamp = new Date().getTime();
+            
+            // Add cache busting to CSS files
+            document.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+                if (!link.href.includes('googleapis.com')) {
+                    const url = new URL(link.href);
+                    url.searchParams.set('v', timestamp);
+                    link.href = url.toString();
+                }
+            });
+        }
+    </script>
     
     <script src="script.js"></script>
     <script src="strava-integration.js"></script>

@@ -907,4 +907,91 @@ window.addEventListener('stravaPhotoImported', (event) => {
              fileInput.dispatchEvent(changeEvent);
          }
      }
-}); 
+});
+
+// Mobile Tab Navigation System
+class MobileTabManager {
+    constructor() {
+        this.currentTab = 'content';
+        this.init();
+    }
+
+    init() {
+        // Bind tab click events
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('mobile-tab-btn') || e.target.closest('.mobile-tab-btn')) {
+                const tabBtn = e.target.classList.contains('mobile-tab-btn') ? e.target : e.target.closest('.mobile-tab-btn');
+                const tabName = tabBtn.dataset.tab;
+                if (tabName) {
+                    this.switchTab(tabName);
+                }
+            }
+        });
+
+        // Set initial tab
+        this.switchTab(this.currentTab);
+    }
+
+    switchTab(tabName) {
+        this.currentTab = tabName;
+        
+        // Update tab button states
+        document.querySelectorAll('.mobile-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        const activeTabBtn = document.querySelector(`[data-tab="${tabName}"]`);
+        if (activeTabBtn) {
+            activeTabBtn.classList.add('active');
+        }
+
+        // Update layout content classes
+        const layoutContent = document.querySelector('.layout-content');
+        if (layoutContent) {
+            // Remove all tab classes
+            layoutContent.classList.remove('tab-content', 'tab-design', 'tab-publish');
+            
+            // Add the current tab class
+            layoutContent.classList.add(`tab-${tabName}`);
+        }
+
+        // Handle special cases for integration toolbar visibility
+        const integrationToolbar = document.querySelector('.integration-toolbar');
+        if (integrationToolbar) {
+            // Reset display
+            integrationToolbar.style.display = '';
+            
+            // Apply mobile-specific visibility rules via CSS classes
+            integrationToolbar.classList.remove('tab-content', 'tab-design', 'tab-publish');
+            integrationToolbar.classList.add(`tab-${tabName}`);
+        }
+    }
+}
+
+// Initialize mobile tab manager when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.innerWidth <= 800) {
+        window.mobileTabManager = new MobileTabManager();
+    }
+    
+    // Handle window resize to initialize/destroy mobile tabs as needed
+    window.addEventListener('resize', () => {
+        if (window.innerWidth <= 800 && !window.mobileTabManager) {
+            window.mobileTabManager = new MobileTabManager();
+        } else if (window.innerWidth > 800 && window.mobileTabManager) {
+            // Clean up mobile tab classes on desktop
+            const layoutContent = document.querySelector('.layout-content');
+            if (layoutContent) {
+                layoutContent.classList.remove('tab-content', 'tab-design', 'tab-publish');
+            }
+            
+            const integrationToolbar = document.querySelector('.integration-toolbar');
+            if (integrationToolbar) {
+                integrationToolbar.classList.remove('tab-content', 'tab-design', 'tab-publish');
+                integrationToolbar.style.display = '';
+            }
+            
+            window.mobileTabManager = null;
+        }
+    });
+});

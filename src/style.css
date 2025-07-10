@@ -31,7 +31,6 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 1.5rem;
 }
 
 .nav-left {
@@ -692,10 +691,6 @@ body {
     height: fit-content;
 }
 
-.format-section:hover {
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-}
-
 /* Grid positioning */
 .format-section.square {
     grid-column: 1;
@@ -997,24 +992,123 @@ body {
     }
 }
 
+/* Mobile Tabs - Hidden on desktop */
+.mobile-tabs-nav {
+    display: none;
+}
+
+/* Mobile and tablet styles for devices up to 800px */
 @media (max-width: 800px) {
-    .nav-content {
-        flex-direction: column;
-        gap: 0.75rem;
+    /* Show mobile tabs navigation */
+    .mobile-tabs-nav {
+        display: flex;
+        padding: 0.5rem;
+        border-radius: 12px;
+        gap: 0.25rem;
+    }
+
+    .mobile-tab-btn {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 1rem;
+        background: transparent;
+        border: none;
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        position: relative;
+    }
+
+    .mobile-tab-btn:hover {
+        background: rgba(255, 255, 255, 0.5);
+    }
+
+    .mobile-tab-btn.active {
+        background: white;
+        border-color: #FF0066;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Mobile Tab Content Management */
+    /* Hide integration toolbar on mobile by default */
+    .integration-toolbar {
+        display: none;
+    }
+
+    /* Hide sidebar and content-area by default on mobile */
+    .sidebar,
+    .content-area {
+        display: none;
+    }
+
+    /* Content Tab: Show activities button + sidebar */
+    .integration-toolbar.tab-content {
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 1rem 0.5rem 1rem;
+    }
+
+    .integration-toolbar.tab-content .toolbar-left {
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .integration-toolbar.tab-content .toolbar-right {
+        display: none !important;
+    }
+
+    .layout-content.tab-content .sidebar {
+        display: block;
+        width: 100%;
+        border-right: none;
+        border-bottom: none;
+        max-height: none;
         padding: 1rem;
+    }
+
+    /* Design Tab: Show content area with canvases */
+    .integration-toolbar.tab-design {
+        display: none !important;
+    }
+
+    .layout-content.tab-design .content-area {
+        display: block;
+        padding: 1rem 1rem 1rem 1rem;
+    }
+
+    /* Publish Tab: Show social media buttons */
+    .integration-toolbar.tab-publish {
+        display: flex !important;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem 1rem 1.5rem 1rem;
+    }
+
+    .integration-toolbar.tab-publish .toolbar-left {
+        display: none !important;
+    }
+
+    .integration-toolbar.tab-publish .toolbar-right {
+        display: flex !important;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    /* Additional responsive styles for all mobile/tablet devices */
+    .nav-content {
+        gap: 0.75rem;
     }
 
     .nav-left {
-        justify-content: center;
-    }
-
-    .integration-toolbar {
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
-    }
-
-    .toolbar-left, .toolbar-right {
         justify-content: center;
     }
     
@@ -1032,27 +1126,6 @@ body {
         min-width: 44px;
     }
 
-    .toolbar-right {
-        flex-wrap: wrap;
-        gap: 0.75rem;
-    }
-    
-    .main-layout {
-        flex-direction: column;
-    }
-    
-    .sidebar {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid #e2e8f0;
-        max-height: 250px;
-        padding: 1rem;
-    }
-    
-    .content-area {
-        padding: 0.75rem;
-    }
-    
     .formats-grid {
         gap: 0.75rem;
     }
@@ -1091,7 +1164,18 @@ body {
         min-height: 80px;
         padding: 0.6rem;
     }
+
+    .main-layout {
+        flex-direction: column;
+    }
+
+    .layout-content {
+        flex: 1;
+        min-height: 0;
+    }
 }
+
+
 
 /* Toast Notification System */
 .toast-container {

@@ -194,8 +194,10 @@ class StravaIntegration {
                     </div>
                 </div>
                 <div class="modal-body">
-                    <div id="activities-list" class="activities-list">
-                        <div class="loading">Loading activities...</div>
+                    <div class="modal-body-content">
+                        <div id="activities-list" class="activities-list">
+                            <div class="loading">Loading activities...</div>
+                        </div>
                     </div>
                 </div>
             </div>

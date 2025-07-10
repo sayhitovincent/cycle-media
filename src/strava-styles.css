@@ -22,13 +22,14 @@
 }
 
 .modal-content {
-    background: white;
-    border-radius: 16px;
-    max-width: 90vw;
-    max-height: 85vh;
-    width: 1200px;
+    background: #f6f4f1;
+    border-radius: 0;
+    width: 100vw;
+    height: 100vh;
     overflow: hidden;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
 }
 
 .modal-header {
@@ -36,14 +37,14 @@
     justify-content: space-between;
     align-items: center;
     padding: 1.5rem 2rem;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    flex-shrink: 0;
 }
 
 .modal-header h2 {
     margin: 0;
     color: #1f2937;
     font-size: 1.5rem;
+    font-weight: 500;
 }
 
 .modal-header-actions {
@@ -84,8 +85,15 @@
 
 .modal-body {
     padding: 2rem;
-    max-height: calc(80vh - 140px);
+    flex: 1;
     overflow-y: auto;
+    display: flex;
+    justify-content: center;
+}
+
+.modal-body-content {
+    width: 100%;
+    max-width: 1200px;
 }
 
 .strava-powered-logo {
@@ -233,13 +241,15 @@
     display: flex;
     flex-direction: column;
     gap: 2rem;
+    padding-bottom: 4rem;
 }
 
 .activity-section {
-    background: #f9fafb;
-    border-radius: 12px;
-    padding: 1.5rem;
-    border: 1px solid #e5e7eb;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    transition: box-shadow 0.2s;
+    padding: 1rem;
 }
 
 .activity-header {
@@ -272,7 +282,7 @@
 }
 
 .activity-type {
-    background: #FC4C02;
+    background: #FF0066;
     color: white;
     padding: 0.25rem 0.75rem;
     border-radius: 6px;
@@ -493,10 +503,9 @@
 /* Mobile responsive */
 @media (max-width: 768px) {
     .modal-content {
-        max-width: 98vw;
-        max-height: 95vh;
-        margin: 0 0.5rem;
-        width: auto;
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
     }
     
     .modal-header {
