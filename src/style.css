@@ -405,7 +405,7 @@ body {
 
 /* Sidebar */
 .sidebar {
-    width: 320px;
+    width: 400px;
     background: #f6f4f1; /* Match the main layout background */
     padding: 1.5rem;
     overflow-y: auto;
@@ -422,8 +422,7 @@ body {
     background: white; /* White background for each section */
     border: 1px solid #e2e8f0; /* Border same as original sidebar border */
     border-radius: 8px; /* Rounded corners for modern look */
-    padding: 1.25rem; /* Internal padding */
-    margin-bottom: 1rem; /* Margin between sections */
+    padding: 1rem; /* Internal padding */
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -468,6 +467,26 @@ body {
     border-color: #FF0066;
     box-shadow: 0 0 0 3px rgba(255, 0, 102, 0.1);
 }
+
+.control-group textarea {
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 100px;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+}
+
+.control-group textarea:focus {
+    outline: none;
+    border-color: #FF0066;
+    box-shadow: 0 0 0 3px rgba(255, 0, 102, 0.1);
+}
+
+
 
 .control-group input[type="file"] {
     padding: 0.5rem;
@@ -535,12 +554,12 @@ body {
 
 /* Featured image loading placeholders */
 .featured-loading-placeholder {
-    width: 60px;
-    height: 60px;
+    aspect-ratio: 1 / 1;
     background: #f6f4f1;
     border-radius: 0.25rem;
     position: relative;
     overflow: hidden;
+    transition: opacity 0.15s ease;
 }
 
 .featured-loading-skeleton {
@@ -556,14 +575,14 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
     gap: 0.5rem;
-    margin-top: 0.5rem;
-    min-height: 63px; /* Prevents layout shift when switching between placeholders and images */
 }
 
 .image-gallery-item {
     position: relative;
     cursor: move;
-    line-height: 1;
+    line-height: 0;
+    aspect-ratio: 1 / 1;
+    transition: opacity 0.15s ease;
 }
 
 .image-gallery-item.dragging {
@@ -572,7 +591,7 @@ body {
 
 .image-gallery img {
     width: 100%;
-    height: 60px;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     border-radius: 0.25rem;
     cursor: pointer;
@@ -763,7 +782,7 @@ body {
     margin-top: 0.75rem;
     padding-top: 0.75rem;
     border-top: 1px solid #e5e7eb;
-    display: none;
+    display: flex;
     flex-direction: column;
     gap: 0.5rem;
 }
@@ -1004,13 +1023,18 @@ body {
         font-size: 0.9rem;
     }
 
-    .activities-btn, .integration-btn {
+    .activities-btn {
         padding: 0.75rem 1.5rem;
         height: 44px;
     }
     
     .integration-btn {
         min-width: 44px;
+    }
+
+    .toolbar-right {
+        flex-wrap: wrap;
+        gap: 0.75rem;
     }
     
     .main-layout {
@@ -1060,6 +1084,12 @@ body {
     .position-control-group label {
         font-size: 0.7rem;
         min-width: 50px;
+    }
+
+    .control-group textarea {
+        font-size: 0.85rem;
+        min-height: 80px;
+        padding: 0.6rem;
     }
 }
 

@@ -682,12 +682,6 @@ class StravaIntegration {
                 
                 // Close modal
                 this.hideActivitiesModal();
-                
-                // Show success message
-                window.toast.success(
-                    `Imported ${activity.photos.length} photos from "${activity.name}"`,
-                    'Activity Import Complete'
-                );
             } else {
                 window.toast.warning('No photos found in this activity', 'Import Warning');
             }
@@ -928,14 +922,37 @@ class StravaIntegration {
             time: `${Math.floor(activity.moving_time / 3600)}:${String(Math.floor((activity.moving_time % 3600) / 60)).padStart(2, '0')}`,
             elevation: `${Math.round(activity.total_elevation_gain)}m`,
             speed: activity.average_speed ? `${(activity.average_speed * 3.6).toFixed(1)} km/h` : null,
-            heartrate: activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : null
+            heartrate: activity.average_heartrate ? `${Math.round(activity.average_heartrate)} bpm` : null,
+            description: activity.description || ''
         };
+        
+        // Update the description field
+        this.updateDescription(statsData.description);
         
         // Trigger an event that your existing app can listen to
         window.dispatchEvent(new CustomEvent('stravaActivityImported', {
             detail: { activity, statsData }
         }));
     }
+
+    updateDescription(description) {
+        const descriptionField = document.getElementById('post-description');
+        
+        if (descriptionField) {
+            descriptionField.value = description;
+        }
+    }
+
+    getCurrentDescription() {
+        const descriptionField = document.getElementById('post-description');
+        return descriptionField ? descriptionField.value : '';
+    }
+
+    clearDescription() {
+        this.updateDescription('');
+    }
+
+
 }
 
 // Initialize when DOM is loaded

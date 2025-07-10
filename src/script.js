@@ -243,10 +243,37 @@ class InstagramMediaGenerator {
                 <div class="featured-loading-placeholder">
                     <div class="featured-loading-skeleton"></div>
                 </div>
+                <div class="featured-loading-placeholder">
+                    <div class="featured-loading-skeleton"></div>
+                </div>
+                <div class="featured-loading-placeholder">
+                    <div class="featured-loading-skeleton"></div>
+                </div>
             `;
             return;
         }
         
+        // Instead of clearing completely, fade out placeholders first
+        const placeholders = gallery.querySelectorAll('.featured-loading-placeholder');
+        
+        // If we have placeholders, fade them out first
+        if (placeholders.length > 0) {
+            placeholders.forEach(placeholder => {
+                placeholder.style.opacity = '0';
+                placeholder.style.transition = 'opacity 0.15s ease';
+            });
+            
+            // Wait for fade out, then replace content
+            setTimeout(() => {
+                this.replaceWithImages(gallery);
+            }, 150);
+        } else {
+            // No placeholders, replace immediately
+            this.replaceWithImages(gallery);
+        }
+    }
+
+    replaceWithImages(gallery) {
         // Clear gallery and populate with actual images
         gallery.innerHTML = '';
         
@@ -255,6 +282,10 @@ class InstagramMediaGenerator {
             itemContainer.classList.add('image-gallery-item');
             itemContainer.draggable = true;
             itemContainer.dataset.index = index;
+            
+            // Start with opacity 0 for fade-in effect
+            itemContainer.style.opacity = '0';
+            itemContainer.style.transition = 'opacity 0.15s ease';
             
             const imgElement = document.createElement('img');
             imgElement.src = img.src;
@@ -289,6 +320,11 @@ class InstagramMediaGenerator {
             itemContainer.addEventListener('dragend', (e) => this.handleDragEnd(e));
             
             gallery.appendChild(itemContainer);
+            
+            // Trigger fade-in for all images simultaneously
+            setTimeout(() => {
+                itemContainer.style.opacity = '1';
+            }, 10); // Very quick fade-in for all images at once
         });
     }
 
@@ -503,7 +539,7 @@ class InstagramMediaGenerator {
     updatePositionControls() {
         const hasImage = this.selectedImageIndex >= 0 || this.uploadedImages.length > 0;
         document.querySelectorAll('.position-controls').forEach(controls => {
-            controls.style.display = hasImage ? 'flex' : 'none';
+            controls.style.display = 'flex'; // Always show position controls
         });
         
         // Reset all position controls to current values
