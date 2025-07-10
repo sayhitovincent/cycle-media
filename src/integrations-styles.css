@@ -232,7 +232,6 @@
 
 .primary-btn:hover {
     background: #2563eb;
-    transform: translateY(-1px);
 }
 
 .secondary-btn {
@@ -251,7 +250,6 @@
 .secondary-btn:hover {
     background: #f3f4f6;
     border-color: #d1d5db;
-    transform: translateY(-1px);
 }
 
 .connected .primary-btn {
@@ -276,7 +274,6 @@
 }
 
 .instagram-card .primary-btn:hover {
-    transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(131, 58, 180, 0.4);
 }
 

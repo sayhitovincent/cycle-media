@@ -154,36 +154,30 @@ class StravaIntegration {
     }
 
     createStravaUI() {
-        // Add connect button to sidebar
-        this.addConnectButtonToSidebar();
+        // Add activities button to header
+        this.addActivitiesButtonToHeader();
         
         // Create activities modal
         this.createActivitiesModal();
     }
 
-    addConnectButtonToSidebar() {
-        const sidebar = document.querySelector('.sidebar .controls');
-        if (!sidebar) return;
+    addActivitiesButtonToHeader() {
+        const headerCenter = document.querySelector('.nav-center');
+        if (!headerCenter) return;
 
         // Check if the button already exists to prevent duplicates
         if (document.getElementById('browse-activities-btn')) {
             return;
         }
 
-        const stravaControlGroup = document.createElement('div');
-        stravaControlGroup.className = 'control-group';
-        stravaControlGroup.innerHTML = `
-            <label>Strava</label>
-            <button id="browse-activities-btn" class="browse-btn" disabled>Activities</button>
-        `;
+        // Create the activities button with consistent styling
+        const activitiesButton = document.createElement('button');
+        activitiesButton.id = 'browse-activities-btn';
+        activitiesButton.className = 'activities-btn';
+        activitiesButton.disabled = true;
+        activitiesButton.innerHTML = 'Update Activity';
 
-        // Insert after the Featured Images section
-        const featuredSection = sidebar.querySelector('.featured-images-section');
-        if (featuredSection && featuredSection.nextSibling) {
-            sidebar.insertBefore(stravaControlGroup, featuredSection.nextSibling);
-        } else {
-            sidebar.appendChild(stravaControlGroup);
-        }
+        headerCenter.appendChild(activitiesButton);
     }
 
     createActivitiesModal() {
@@ -297,27 +291,36 @@ class StravaIntegration {
         window.history.replaceState({}, document.title, url);
     }
 
-    showAuthenticatedUI() {
-        // Update main page UI - just enable the activities button
-        const browseBtn = document.getElementById('browse-activities-btn');
-        
-        if (browseBtn) {
-            browseBtn.disabled = false;
-            browseBtn.textContent = 'Activities';
+    updateActivitiesButtonState(state = 'normal', disabled = false) {
+        const browseButton = document.getElementById('browse-activities-btn');
+        if (!browseButton) return;
+
+        browseButton.disabled = disabled;
+        browseButton.classList.remove('btn-loading');
+
+        switch (state) {
+            case 'loading':
+                browseButton.classList.add('btn-loading');
+                browseButton.innerHTML = '<span class="loading-spinner"></span>';
+                break;
+            case 'normal':
+            default:
+                browseButton.innerHTML = `Update Activity`;
+                break;
         }
+    }
+
+    showAuthenticatedUI() {
+        // Update main page UI - enable the activities button
+        this.updateActivitiesButtonState('normal', false);
         
         // Update integrations page UI
         this.updateIntegrationsPageUI(true);
     }
 
     showUnauthenticatedUI() {
-        // Update main page UI - just disable the activities button
-        const browseBtn = document.getElementById('browse-activities-btn');
-        
-        if (browseBtn) {
-            browseBtn.disabled = true;
-            browseBtn.textContent = 'Activities';
-        }
+        // Update main page UI - disable the activities button
+        this.updateActivitiesButtonState('normal', true);
         
         // Update integrations page UI
         this.updateIntegrationsPageUI(false);
@@ -368,13 +371,8 @@ class StravaIntegration {
 
     async loadActivities() {
         try {
-            // Show loading state on browse button if it exists
-            const browseButton = document.getElementById('browse-activities-btn');
-            if (browseButton) {
-                browseButton.disabled = true;
-                browseButton.classList.add('btn-loading');
-                browseButton.innerHTML = '<span class="loading-spinner"></span><span style="text-indent: -9999px; display: block;">Activities</span>';
-            }
+            // Show loading state on browse button
+            this.updateActivitiesButtonState('loading', true);
 
             this.activities = await this.rateLimitedFetch(`${this.baseUrl}/api/activities`);
             await this.renderActivities();
@@ -385,13 +383,8 @@ class StravaIntegration {
                 activitiesList.innerHTML = '<div class="error">Failed to load activities</div>';
             }
         } finally {
-            // Reset browse button state
-            const browseButton = document.getElementById('browse-activities-btn');
-            if (browseButton) {
-                browseButton.disabled = false;
-                browseButton.classList.remove('btn-loading');
-                browseButton.innerHTML = 'Activities';
-            }
+            // Reset browse button to normal state
+            this.updateActivitiesButtonState('normal', false);
         }
     }
 
