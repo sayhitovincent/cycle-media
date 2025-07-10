@@ -45,12 +45,6 @@
     border: 1px solid #e5e7eb;
 }
 
-.back-btn:hover {
-    background: #e5e7eb;
-    color: #1f2937;
-    transform: translateY(-1px);
-}
-
 .section-header {
     text-align: center;
     margin-bottom: 3rem;
@@ -90,8 +84,7 @@
 }
 
 .integration-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 10px 15px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
     border-color: #d1d5db;
 }
 

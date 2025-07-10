@@ -6,8 +6,8 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f8fafc;
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f6f4f1;
     color: #1a202c;
     line-height: 1.6;
 }
@@ -44,13 +44,13 @@ body {
 }
 
 .nav-link:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
+    color: #FF0066;
+    background: rgba(255, 0, 102, 0.05);
 }
 
 .nav-link.active {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
+    color: #FF0066;
+    background: rgba(255, 0, 102, 0.1);
 }
 
 .nav-link.active::after {
@@ -60,12 +60,56 @@ body {
     left: 0;
     right: 0;
     height: 2px;
-    background: #667eea;
+    background: #FF0066;
+}
+
+/* Modern Button Styles */
+.btn-primary {
+    background: #000000;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-primary:hover {
+    background: #1a1a1a;
+}
+
+.btn-secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 0.75rem 1.5rem;
+    border-radius: 24px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.btn-secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
 }
 
 /* Top Banner */
 .top-banner {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #FF0066 0%, #21004D 100%);
     color: white;
     padding: 2rem 0;
     text-align: center;
@@ -150,7 +194,7 @@ body {
 .controls {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .control-group {
@@ -175,8 +219,8 @@ body {
 
 .control-group input[type="text"]:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #FF0066;
+    box-shadow: 0 0 0 3px rgba(255, 0, 102, 0.1);
 }
 
 .control-group input[type="file"] {
@@ -200,7 +244,7 @@ body {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background: #667eea;
+    background: #FF0066;
     cursor: pointer;
 }
 
@@ -213,7 +257,7 @@ body {
     transition: border-color 0.2s;
     background: white;
     /* Use accent-color to work with shadow DOM */
-    accent-color: #667eea;
+    accent-color: #FF0066;
     /* Try to remove default appearance */
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -222,8 +266,8 @@ body {
 
 .control-group input[type="color"]:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #FF0066;
+    box-shadow: 0 0 0 3px rgba(255, 0, 102, 0.1);
 }
 
 /* Target the color swatch specifically for WebKit browsers */
@@ -243,12 +287,31 @@ body {
     border-bottom: 1px solid #e5e7eb;
 }
 
+/* Featured image loading placeholders */
+.featured-loading-placeholder {
+    width: 60px;
+    height: 60px;
+    background: #f6f4f1;
+    border-radius: 0.25rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.featured-loading-skeleton {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #f6f4f1 25%, #ebe8e2 50%, #f6f4f1 75%);
+    background-size: 200% 100%;
+    animation: skeleton-loading 1.5s infinite;
+}
+
 /* Image gallery */
 .image-gallery {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
     gap: 0.5rem;
     margin-top: 0.5rem;
+    min-height: 63px; /* Prevents layout shift when switching between placeholders and images */
 }
 
 .image-gallery-item {
@@ -272,11 +335,11 @@ body {
 }
 
 .image-gallery img:hover {
-    border-color: #667eea;
+    border-color: #FF0066;
 }
 
 .image-gallery img.selected {
-    border-color: #667eea;
+    border-color: #FF0066;
 }
 
 .image-delete-btn {
@@ -331,57 +394,7 @@ body {
     opacity: 1;
 }
 
-/* Sample backgrounds */
-.sample-backgrounds {
-}
 
-.sample-backgrounds h4 {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #6b7280;
-    margin-bottom: 0.5rem;
-}
-
-.sample-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-}
-
-.sample-bg {
-    height: 40px;
-    border-radius: 0.25rem;
-    cursor: pointer;
-    border: 2px solid transparent;
-    transition: border-color 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: white;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-
-.sample-bg:hover {
-    border-color: #667eea;
-}
-
-.sample-bg.selected {
-    border-color: #667eea;
-}
-
-.gradient-1 {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.gradient-2 {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.gradient-3 {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
 
 
 
@@ -482,20 +495,20 @@ body {
 }
 
 .download-btn {
-    background: #667eea;
+    background: #000000;
     color: white;
     border: none;
-    border-radius: 0.375rem;
+    border-radius: 24px;
     padding: 0.5rem 0.75rem;
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s;
     flex-shrink: 0;
 }
 
 .download-btn:hover {
-    background: #5a67d8;
+    background: #1a1a1a;
 }
 
 /* Position controls */
@@ -537,7 +550,7 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #667eea;
+    background: #FF0066;
     cursor: pointer;
     border: 2px solid white;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -547,7 +560,7 @@ body {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: #667eea;
+    background: #FF0066;
     cursor: pointer;
     border: 2px solid white;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -797,7 +810,7 @@ body {
     min-width: 300px;
     max-width: 400px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #FF0066;
     pointer-events: auto;
     animation: toastSlideIn 0.3s ease-out;
     position: relative;

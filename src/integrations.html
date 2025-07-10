@@ -6,7 +6,7 @@
     <title>Integrations - Instagram Media Generator</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="integrations-styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="app-container">
@@ -27,7 +27,7 @@
 
                 <div class="integrations-grid">
                     <!-- Strava Integration -->
-                    <div class="integration-card strava-card connected">
+                    <div class="integration-card strava-card disconnected">
                         <div class="card-header">
                             <div class="platform-icon strava-icon">
                                 <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
@@ -37,8 +37,8 @@
                                 </svg>
                             </div>
                             <div class="connection-status">
-                                <span class="status-dot connected"></span>
-                                <span class="status-text">Connected</span>
+                                <span class="status-dot disconnected"></span>
+                                <span class="status-text">Not Connected</span>
                             </div>
                         </div>
                         <div class="card-content">
@@ -51,7 +51,7 @@
                             </div>
                         </div>
                         <div class="card-actions">
-                            <button class="primary-btn">Manage Connection</button>
+                            <button id="strava-logout-btn" class="primary-btn">Connect Strava</button>
                             <button class="secondary-btn">Settings</button>
                         </div>
                     </div>
@@ -208,5 +208,19 @@
             </div>
         </main>
     </div>
+    
+    <script src="script.js"></script>
+    <script src="strava-integration.js"></script>
+    <script>
+        // Initialize toast manager
+        window.toast = new ToastManager();
+        window.toast.init();
+        
+        // Initialize Strava integration
+        window.stravaIntegration = new StravaIntegration();
+        window.stravaIntegration.initializeElements();
+        window.stravaIntegration.bindEvents();
+        window.stravaIntegration.checkAuthStatus();
+    </script>
 </body>
 </html> 

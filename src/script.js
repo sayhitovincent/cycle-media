@@ -134,7 +134,8 @@ class InstagramMediaGenerator {
             imageGallery: document.getElementById('image-gallery'),
             opacity: document.getElementById('opacity'),
             opacityValue: document.getElementById('opacity-value'),
-            textColor: document.getElementById('text-color')
+            textColor: document.getElementById('text-color'),
+            backgroundColor: document.getElementById('background-color')
         };
     }
 
@@ -155,6 +156,7 @@ class InstagramMediaGenerator {
         this.elements.time.addEventListener('input', () => this.generateAllPreviews());
         this.elements.elevation.addEventListener('input', () => this.generateAllPreviews());
         this.elements.textColor.addEventListener('change', () => this.generateAllPreviews());
+        this.elements.backgroundColor.addEventListener('change', () => this.generateAllPreviews());
         
         // Opacity slider
         this.elements.opacity.addEventListener('input', () => {
@@ -167,19 +169,7 @@ class InstagramMediaGenerator {
             this.handleImageUpload(e.target.files);
         });
 
-        // Sample gradient backgrounds
-        document.querySelectorAll('.sample-bg').forEach(bg => {
-            bg.addEventListener('click', () => {
-                document.querySelectorAll('.sample-bg').forEach(b => b.classList.remove('selected'));
-                bg.classList.add('selected');
-                this.selectedBackground = bg.dataset.gradient;
-                this.selectedImageIndex = -1;
-                this.resetImagePositions();
-                this.updateImageGallery();
-                this.updatePositionControls();
-                this.generateAllPreviews();
-            });
-        });
+
 
         // Download buttons (using event delegation for card-based buttons)
         document.addEventListener('click', (e) => {
@@ -237,6 +227,27 @@ class InstagramMediaGenerator {
 
     updateImageGallery() {
         const gallery = this.elements.imageGallery;
+        
+        if (this.uploadedImages.length === 0) {
+            // Show default placeholders when no images are uploaded
+            gallery.innerHTML = `
+                <div class="featured-loading-placeholder">
+                    <div class="featured-loading-skeleton"></div>
+                </div>
+                <div class="featured-loading-placeholder">
+                    <div class="featured-loading-skeleton"></div>
+                </div>
+                <div class="featured-loading-placeholder">
+                    <div class="featured-loading-skeleton"></div>
+                </div>
+                <div class="featured-loading-placeholder">
+                    <div class="featured-loading-skeleton"></div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Clear gallery and populate with actual images
         gallery.innerHTML = '';
         
         this.uploadedImages.forEach((img, index) => {
@@ -284,7 +295,6 @@ class InstagramMediaGenerator {
     selectImage(index) {
         this.selectedImageIndex = index;
         this.selectedBackground = null;
-        document.querySelectorAll('.sample-bg').forEach(bg => bg.classList.remove('selected'));
         this.resetImagePositions();
         this.updateImageGallery();
         this.updatePositionControls();
@@ -304,8 +314,7 @@ class InstagramMediaGenerator {
             // Update selected index if necessary
             if (this.selectedImageIndex === index) {
                 this.selectedImageIndex = -1;
-                this.selectedBackground = 'gradient-1'; // Default to first gradient
-                document.querySelectorAll('.sample-bg')[0].classList.add('selected');
+                this.selectedBackground = null; // Use background color instead
             } else if (this.selectedImageIndex > index) {
                 this.selectedImageIndex--;
             }
@@ -552,10 +561,8 @@ class InstagramMediaGenerator {
         
         if (imageIndex >= 0 && this.uploadedImages[imageIndex]) {
             this.drawImageBackground(ctx, width, height, this.uploadedImages[imageIndex], formatKey);
-        } else if (this.selectedBackground) {
-            this.drawGradientBackground(ctx, width, height, this.selectedBackground);
         } else {
-            this.drawDefaultBackground(ctx, width, height);
+            this.drawSolidBackground(ctx, width, height);
         }
     }
 
@@ -597,41 +604,9 @@ class InstagramMediaGenerator {
         ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     }
 
-    drawGradientBackground(ctx, width, height, gradientType) {
-        let gradient;
-        
-        switch (gradientType) {
-            case 'gradient-1':
-                gradient = ctx.createLinearGradient(0, 0, width, height);
-                gradient.addColorStop(0, '#667eea');
-                gradient.addColorStop(1, '#764ba2');
-                break;
-            case 'gradient-2':
-                gradient = ctx.createLinearGradient(0, 0, width, height);
-                gradient.addColorStop(0, '#f093fb');
-                gradient.addColorStop(1, '#f5576c');
-                break;
-            case 'gradient-3':
-                gradient = ctx.createLinearGradient(0, 0, width, height);
-                gradient.addColorStop(0, '#4facfe');
-                gradient.addColorStop(1, '#00f2fe');
-                break;
-            default:
-                gradient = ctx.createLinearGradient(0, 0, width, height);
-                gradient.addColorStop(0, '#667eea');
-                gradient.addColorStop(1, '#764ba2');
-        }
-        
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, height);
-    }
-
-    drawDefaultBackground(ctx, width, height) {
-        const gradient = ctx.createLinearGradient(0, 0, width, height);
-        gradient.addColorStop(0, '#667eea');
-        gradient.addColorStop(1, '#764ba2');
-        
-        ctx.fillStyle = gradient;
+    drawSolidBackground(ctx, width, height) {
+        const backgroundColor = this.elements.backgroundColor.value;
+        ctx.fillStyle = backgroundColor;
         ctx.fillRect(0, 0, width, height);
     }
 
@@ -722,10 +697,10 @@ class InstagramMediaGenerator {
             const stat = stats[i];
             
             // Calculate stat dimensions
-            ctx.font = `${labelFontSize}px Inter, sans-serif`;
+            ctx.font = `${labelFontSize}px Geist, sans-serif`;
             const labelWidth = ctx.measureText(stat.label).width;
             
-            ctx.font = `bold ${valueFontSize}px Inter, sans-serif`;
+            ctx.font = `bold ${valueFontSize}px Geist, sans-serif`;
             const valueWidth = ctx.measureText(stat.value).width;
             
             const statWidth = Math.max(labelWidth, valueWidth);
@@ -744,10 +719,10 @@ class InstagramMediaGenerator {
             }
             
             // Draw stat at current position
-            ctx.font = `${labelFontSize}px Inter, sans-serif`;
+            ctx.font = `${labelFontSize}px Geist, sans-serif`;
             ctx.fillText(stat.label, currentX, currentY - valueFontSize - labelValueGap);
             
-            ctx.font = `bold ${valueFontSize}px Inter, sans-serif`;
+            ctx.font = `bold ${valueFontSize}px Geist, sans-serif`;
             ctx.fillText(stat.value, currentX, currentY);
             
             // Update position for next stat
@@ -775,7 +750,7 @@ class InstagramMediaGenerator {
         let lines = [];
         
         do {
-            ctx.font = `bold ${fontSize}px Inter, sans-serif`;
+            ctx.font = `bold ${fontSize}px Geist, sans-serif`;
             lines = this.wrapText(ctx, title, maxWidth);
             fontSize -= 2;
         } while (lines.length > 3 && fontSize > 20);
