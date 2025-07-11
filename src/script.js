@@ -262,9 +262,9 @@ class InstagramMediaGenerator {
     }
 
     /**
-     * Detect stops longer than 10 minutes in GPS data
+     * Detect stops longer than 5 minutes in GPS data (limited to 9 stops maximum)
      */
-    detectStops(streams, minStopDurationMinutes = 10) {
+    detectStops(streams, minStopDurationMinutes = 5) {
         if (!streams || !streams.coordinates || !streams.timestamps) {
             console.log('❌ No streams data available for stop detection');
             return [];
@@ -381,9 +381,9 @@ class InstagramMediaGenerator {
                 lat: coordinates[midIndex][0],
                 lng: coordinates[midIndex][1],
                 startTime: timestamps[midIndex],
-                endTime: timestamps[midIndex] + 600, // 10 min test duration
-                duration: 600,
-                durationMinutes: 10,
+                endTime: timestamps[midIndex] + 300, // 5 min test duration
+                duration: 300,
+                durationMinutes: 5,
                 pointCount: 1,
                 beforeMovement: 100,
                 afterMovement: 100,
@@ -393,7 +393,14 @@ class InstagramMediaGenerator {
             console.log(`🧪 Added test stop for debugging at route midpoint: (${testStop.lat.toFixed(6)}, ${testStop.lng.toFixed(6)})`);
         }
 
-        return stops;
+        // Limit to maximum 9 stops
+        const limitedStops = stops.slice(0, 9);
+        
+        if (stops.length > 9) {
+            console.log(`🔢 Limited stops from ${stops.length} to ${limitedStops.length} (max 9)`);
+        }
+        
+        return limitedStops;
     }
 
     /**
@@ -652,7 +659,37 @@ class InstagramMediaGenerator {
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
 
-            // Draw route path OVER the place names
+            // Draw start and end points UNDER the route
+            const startPoint = canvasCoords[0];
+            const endPoint = canvasCoords[canvasCoords.length - 1];
+            const stopCount = stops.length;
+            const endNumber = stopCount + 2; // Start(1) + stops + end
+            
+            // Check if start and end points overlap by more than 60%
+            const distance = Math.sqrt(
+                Math.pow(endPoint[0] - startPoint[0], 2) + 
+                Math.pow(endPoint[1] - startPoint[1], 2)
+            );
+            const circleRadius = 30;
+            const overlapThreshold = circleRadius * 1.2; // 60% overlap threshold
+            const showBothCircles = distance >= overlapThreshold;
+            
+            // Draw start point (transparent green circle - no border) - 50% larger
+            ctx.fillStyle = 'rgba(34, 197, 94, 0.3)'; // Transparent green
+            ctx.beginPath();
+            ctx.arc(startPoint[0], startPoint[1], 30, 0, 2 * Math.PI);
+            ctx.fill();
+
+            // Only draw end point if circles don't overlap significantly
+            if (showBothCircles) {
+                // Draw end point (transparent red circle - no border) - 50% larger
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.3)'; // Transparent red
+                ctx.beginPath();
+                ctx.arc(endPoint[0], endPoint[1], 30, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // Draw route path OVER the start/end circles
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.lineWidth = 8;
             ctx.lineCap = 'round';
@@ -676,25 +713,44 @@ class InstagramMediaGenerator {
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
 
-            // Draw start point (white dot)
-            const startPoint = canvasCoords[0];
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            // Draw pink dots for start and end points (above route line and green/red circles, below numbers)
+            // Draw end dot first, then start dot on top (only if both circles are shown)
+            ctx.fillStyle = '#FF0066'; // Pink color
+            
+            // Only draw end pink dot if red circle is visible
+            if (showBothCircles) {
+                ctx.beginPath();
+                ctx.arc(endPoint[0], endPoint[1], 16, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+            
+            // Always draw start pink dot
             ctx.beginPath();
-            ctx.arc(startPoint[0], startPoint[1], 7, 0, 2 * Math.PI);
+            ctx.arc(startPoint[0], startPoint[1], 16, 0, 2 * Math.PI);
             ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
 
-            // Draw end point (white dot)
-            const endPoint = canvasCoords[canvasCoords.length - 1];
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.beginPath();
-            ctx.arc(endPoint[0], endPoint[1], 7, 0, 2 * Math.PI);
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+            // Draw start number on top (with better centering) - 2px larger text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 18px Geist, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            // Measure text to center it properly
+            const startMetrics = ctx.measureText('1');
+            const startTextHeight = startMetrics.actualBoundingBoxAscent;
+            ctx.fillText('1', startPoint[0], startPoint[1] + startTextHeight / 2);
+
+            // Only draw end number if both circles are visible
+            if (showBothCircles) {
+                // Draw end number on top (with better centering) - 2px larger text
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = 'bold 18px Geist, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'alphabetic';
+                const endText = endNumber.toString();
+                const endMetrics = ctx.measureText(endText);
+                const endTextHeight = endMetrics.actualBoundingBoxAscent;
+                ctx.fillText(endText, endPoint[0], endPoint[1] + endTextHeight / 2);
+            }
 
             // Draw stop markers (pink dots for 10+ minute stops)
             console.log(`🩷 Attempting to draw ${stops.length} stop markers`);
@@ -714,18 +770,24 @@ class InstagramMediaGenerator {
                     if (stopX >= 0 && stopX <= width && stopY >= 0 && stopY <= height) {
                         console.log(`     ✅ Drawing pink dot within canvas bounds`);
                         
-                        // Draw pink stop marker
-                        ctx.fillStyle = '#FF69B4'; // Hot pink color
+                        // Draw pink stop marker (#FF0066) - no border
+                        ctx.fillStyle = '#FF0066'; // Exact pink color requested
                         ctx.beginPath();
-                        ctx.arc(stopX, stopY, 8, 0, 2 * Math.PI); // Increased size to 8px
+                        ctx.arc(stopX, stopY, 16, 0, 2 * Math.PI); // 16px radius for consistency
                         ctx.fill();
                         
-                        // Add white border
-                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                        ctx.lineWidth = 3; // Increased border width
-                        ctx.stroke();
+                        // Draw stop number on top (with better centering) - 2px larger text
+                        ctx.fillStyle = '#FFFFFF';
+                        ctx.font = 'bold 16px Geist, sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'alphabetic';
+                        const stopNumber = index + 2; // Start is 1, so stops start at 2
+                        const stopText = stopNumber.toString();
+                        const stopMetrics = ctx.measureText(stopText);
+                        const stopTextHeight = stopMetrics.actualBoundingBoxAscent;
+                        ctx.fillText(stopText, stopX, stopY + stopTextHeight / 2);
                         
-                        console.log(`     ✅ Pink dot drawn successfully at (${stopX.toFixed(1)}, ${stopY.toFixed(1)})`);
+                        console.log(`     ✅ Pink dot #${stopNumber} drawn successfully at (${stopX.toFixed(1)}, ${stopY.toFixed(1)})`);
                     } else {
                         console.log(`     ❌ Stop outside canvas bounds - X: ${stopX.toFixed(1)} (0-${width}), Y: ${stopY.toFixed(1)} (0-${height})`);
                     }
