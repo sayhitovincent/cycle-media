@@ -448,47 +448,83 @@ class InstagramMediaGenerator {
     async getNearbyPlaces(minLat, maxLat, minLng, maxLng) {
         try {
             const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=suburb&limit=50&bounded=1&viewbox=${bbox}&addressdetails=1&extratags=1&namedetails=1&accept-language=en`;
             
-            console.log('Fetching places from:', url); // Debug logging
+            // Try multiple search strategies for better coverage
+            const searchQueries = [
+                'suburb',
+                'locality', 
+                'neighbourhood',
+                'town',
+                'city',
+                'village'
+            ];
             
-            const response = await fetch(url, {
-                headers: {
-                    'User-Agent': 'CyclingMediaGenerator/1.0'
+            let allPlaces = [];
+            
+            // Try each search query
+            for (const query of searchQueries) {
+                const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&limit=20&bounded=1&viewbox=${bbox}&addressdetails=1&extratags=1&namedetails=1&accept-language=en`;
+                
+                console.log(`🔍 Trying search query: "${query}" - ${url}`);
+                
+                try {
+                    const response = await fetch(url, {
+                        headers: {
+                            'User-Agent': 'CyclingMediaGenerator/1.0'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const places = await response.json();
+                        console.log(`📍 "${query}" returned ${places.length} places`);
+                        allPlaces.push(...places);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to fetch ${query}:`, error);
                 }
-            });
-            
-            if (!response.ok) {
-                console.warn('API response not ok:', response.status, response.statusText);
-                return [];
+                
+                // Add small delay to be respectful to the API
+                await new Promise(resolve => setTimeout(resolve, 100));
             }
             
-            const places = await response.json();
-            console.log('Raw API response:', places); // Debug logging
+            console.log(`🗺️ Total places from all queries: ${allPlaces.length}`);
+            console.log('Raw combined places:', allPlaces);
             
             // Be more lenient with filtering - accept more place types
-            const filteredPlaces = places.filter(place => {
+            const filteredPlaces = allPlaces.filter(place => {
                 const type = place.type;
                 const category = place.class;
-                const placeTypes = ['suburb', 'neighbourhood', 'town', 'city', 'village', 'hamlet', 'residential', 'locality'];
+                const placeTypes = ['suburb', 'neighbourhood', 'town', 'city', 'village', 'hamlet', 'residential', 'locality', 'quarter', 'district'];
                 
-                const isPlace = category === 'place' || category === 'boundary' || category === 'landuse';
+                const isPlace = category === 'place' || category === 'boundary' || category === 'landuse' || category === 'highway';
                 const hasGoodType = placeTypes.includes(type);
                 const hasName = place.name && place.name.length > 0;
                 
-                return (isPlace || hasGoodType) && hasName;
+                // Also check for valid coordinates
+                const hasValidCoords = place.lat && place.lon && !isNaN(parseFloat(place.lat)) && !isNaN(parseFloat(place.lon));
+                
+                return (isPlace || hasGoodType) && hasName && hasValidCoords;
             });
             
-            console.log('Filtered places:', filteredPlaces); // Debug logging
+            console.log(`🔍 Filtered places: ${filteredPlaces.length}/${allPlaces.length}`);
+            console.log('Filtered places:', filteredPlaces);
             
-            // Remove duplicates by name and limit to 20 most relevant
+            // Remove duplicates by name and prioritize by importance
             const uniquePlaces = filteredPlaces
                 .filter((place, index, self) => 
                     index === self.findIndex(p => p.name === place.name)
                 )
-                .slice(0, 20);
+                .sort((a, b) => {
+                    // Prioritize by place type importance
+                    const typeOrder = ['city', 'town', 'suburb', 'locality', 'neighbourhood', 'village', 'hamlet'];
+                    const aIndex = typeOrder.indexOf(a.type) !== -1 ? typeOrder.indexOf(a.type) : 999;
+                    const bIndex = typeOrder.indexOf(b.type) !== -1 ? typeOrder.indexOf(b.type) : 999;
+                    return aIndex - bIndex;
+                })
+                .slice(0, 15); // Reduced to 15 for cleaner display
                 
-            console.log('Final unique places:', uniquePlaces); // Debug logging
+            console.log(`✅ Final unique places: ${uniquePlaces.length}`);
+            console.log('Final places:', uniquePlaces.map(p => `${p.name} (${p.type})`));
             return uniquePlaces;
         } catch (error) {
             console.error('Error fetching nearby places:', error);
@@ -608,7 +644,26 @@ class InstagramMediaGenerator {
                 ctx.shadowOffsetX = 2;
                 ctx.shadowOffsetY = 2;
 
-                places.forEach((place, index) => {
+                // Track drawn text positions to prevent overlaps
+                const drawnTextBoxes = [];
+                
+                // Sort places by priority before drawing (more important places drawn first)
+                const prioritizedPlaces = places.sort((a, b) => {
+                    const typePriority = {
+                        'city': 1,
+                        'town': 2,
+                        'suburb': 3,
+                        'locality': 4,
+                        'neighbourhood': 5,
+                        'village': 6,
+                        'hamlet': 7
+                    };
+                    const aPriority = typePriority[a.type] || 8;
+                    const bPriority = typePriority[b.type] || 8;
+                    return aPriority - bPriority;
+                });
+
+                prioritizedPlaces.forEach((place, index) => {
                     const lat = parseFloat(place.lat);
                     const lng = parseFloat(place.lon);
                     
@@ -642,8 +697,35 @@ class InstagramMediaGenerator {
                         
                         if (placeName) {
                             const upperCaseName = placeName.toUpperCase();
-                            console.log(`Drawing text: "${upperCaseName}" at (${x}, ${y})`); // Debug logging
-                            ctx.fillText(upperCaseName, x, y);
+                            
+                            // Calculate text dimensions for collision detection
+                            const textMetrics = ctx.measureText(upperCaseName);
+                            const textWidth = textMetrics.width;
+                            const textHeight = 24; // Approximate height for 20px font
+                            const padding = 8; // Add padding around text for visual separation
+                            
+                            const textBox = {
+                                x: x - (textWidth + padding) / 2,
+                                y: y - (textHeight + padding) / 2,
+                                width: textWidth + padding,
+                                height: textHeight + padding
+                            };
+                            
+                            // Check for overlaps with previously drawn text
+                            const hasOverlap = drawnTextBoxes.some(existingBox => {
+                                return !(textBox.x + textBox.width < existingBox.x || 
+                                        existingBox.x + existingBox.width < textBox.x ||
+                                        textBox.y + textBox.height < existingBox.y ||
+                                        existingBox.y + existingBox.height < textBox.y);
+                            });
+                            
+                            if (!hasOverlap) {
+                                console.log(`✅ Drawing text: "${upperCaseName}" at (${x}, ${y})`);
+                                ctx.fillText(upperCaseName, x, y);
+                                drawnTextBoxes.push(textBox);
+                            } else {
+                                console.log(`❌ Skipping overlapping text: "${upperCaseName}" at (${x}, ${y})`);
+                            }
                         }
                     } else {
                         console.log(`Place ${place.name} outside bounds`); // Debug logging
@@ -671,8 +753,11 @@ class InstagramMediaGenerator {
                 Math.pow(endPoint[1] - startPoint[1], 2)
             );
             const circleRadius = 30;
-            const overlapThreshold = circleRadius * 1.2; // 60% overlap threshold
-            const showBothCircles = distance >= overlapThreshold;
+            // For 60% overlap, distance should be less than 0.8 * diameter = 48px
+            const overlapThreshold = circleRadius * 0.8; // 60% overlap threshold = 24px
+            const showBothCircles = distance > overlapThreshold;
+            
+            console.log(`🔍 Overlap detection: distance=${distance.toFixed(1)}px, threshold=${overlapThreshold}px, showBoth=${showBothCircles}`);
             
             // Draw start point (transparent green circle - no border) - 50% larger
             ctx.fillStyle = 'rgba(34, 197, 94, 0.3)'; // Transparent green
