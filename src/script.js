@@ -262,70 +262,137 @@ class InstagramMediaGenerator {
     }
 
     /**
-     * Detect stops longer than 15 minutes in GPS data
+     * Detect stops longer than 10 minutes in GPS data
      */
-    detectStops(streams, minStopDurationMinutes = 15) {
+    detectStops(streams, minStopDurationMinutes = 10) {
         if (!streams || !streams.coordinates || !streams.timestamps) {
+            console.log('❌ No streams data available for stop detection');
             return [];
         }
+
+        console.log(`🔍 Starting stop detection analysis:`);
+        console.log(`   📊 Total GPS points: ${streams.coordinates.length}`);
+        console.log(`   ⏱️  Min stop duration: ${minStopDurationMinutes} minutes`);
 
         const stops = [];
         const coordinates = streams.coordinates;
         const timestamps = streams.timestamps;
         const minStopDuration = minStopDurationMinutes * 60; // Convert to seconds
-        const maxStopRadius = 50; // Maximum radius in meters to consider as "same location"
+        const maxStopRadius = 50; // Increased back to 50m for better detection
+        const minMovementThreshold = 50; // Reduced threshold to 50m
 
-        let currentStopStart = null;
-        let currentStopIndex = null;
+        // Skip the first and last 2% of points (less restrictive)
+        const startSkip = Math.floor(coordinates.length * 0.02);
+        const endSkip = Math.floor(coordinates.length * 0.98);
 
-        for (let i = 1; i < coordinates.length; i++) {
-            const [lat1, lng1] = coordinates[i - 1];
-            const [lat2, lng2] = coordinates[i];
-            const timeDiff = timestamps[i] - timestamps[i - 1];
+        console.log(`   📍 Analyzing points ${startSkip} to ${endSkip} (skipping start/end)`);
+
+        let candidateStops = 0;
+        let filteredStops = 0;
+
+        let i = startSkip;
+        while (i < endSkip) {
+            let stationaryStart = i;
+            let stationaryEnd = i;
             
-            // Calculate distance between consecutive points using Haversine formula
-            const distance = this.calculateDistance(lat1, lng1, lat2, lng2);
-            
-            // If we're moving very slowly or stopped
-            if (distance < maxStopRadius && timeDiff > 0) {
-                if (currentStopStart === null) {
-                    currentStopStart = timestamps[i - 1];
-                    currentStopIndex = i - 1;
-                }
-            } else {
-                // We're moving - check if we had a long enough stop
-                if (currentStopStart !== null) {
-                    const stopDuration = timestamps[i - 1] - currentStopStart;
-                    if (stopDuration >= minStopDuration) {
-                        stops.push({
-                            lat: coordinates[currentStopIndex][0],
-                            lng: coordinates[currentStopIndex][1],
-                            startTime: currentStopStart,
-                            duration: stopDuration,
-                            durationMinutes: Math.round(stopDuration / 60)
-                        });
-                    }
-                    currentStopStart = null;
-                    currentStopIndex = null;
+            // Look ahead to find consecutive stationary points
+            for (let j = i + 1; j < endSkip; j++) {
+                const [lat1, lng1] = coordinates[i];
+                const [lat2, lng2] = coordinates[j];
+                const distance = this.calculateDistance(lat1, lng1, lat2, lng2);
+                
+                if (distance <= maxStopRadius) {
+                    stationaryEnd = j;
+                } else {
+                    break;
                 }
             }
-        }
-
-        // Check for a stop at the end of the activity
-        if (currentStopStart !== null) {
-            const stopDuration = timestamps[timestamps.length - 1] - currentStopStart;
-            if (stopDuration >= minStopDuration) {
-                stops.push({
-                    lat: coordinates[currentStopIndex][0],
-                    lng: coordinates[currentStopIndex][1],
-                    startTime: currentStopStart,
-                    duration: stopDuration,
-                    durationMinutes: Math.round(stopDuration / 60)
-                });
+            
+            // Calculate duration of this stationary period
+            const stationaryDuration = timestamps[stationaryEnd] - timestamps[stationaryStart];
+            
+            if (stationaryDuration >= minStopDuration) {
+                candidateStops++;
+                
+                // Find the center point of the stationary region
+                let avgLat = 0, avgLng = 0;
+                const pointCount = stationaryEnd - stationaryStart + 1;
+                
+                for (let k = stationaryStart; k <= stationaryEnd; k++) {
+                    avgLat += coordinates[k][0];
+                    avgLng += coordinates[k][1];
+                }
+                
+                avgLat /= pointCount;
+                avgLng /= pointCount;
+                
+                console.log(`   🚩 Candidate stop: ${Math.round(stationaryDuration / 60)}min at (${avgLat.toFixed(6)}, ${avgLng.toFixed(6)})`);
+                
+                // Verify this is actually a meaningful stop (not just GPS noise)
+                // Check if there's significant movement before and after
+                const beforeDistance = stationaryStart > 10 ? 
+                    this.calculateDistance(
+                        coordinates[stationaryStart - 10][0], coordinates[stationaryStart - 10][1],
+                        coordinates[stationaryStart][0], coordinates[stationaryStart][1]
+                    ) : minMovementThreshold + 1; // Assume movement if near start
+                
+                const afterDistance = stationaryEnd < coordinates.length - 10 ?
+                    this.calculateDistance(
+                        coordinates[stationaryEnd][0], coordinates[stationaryEnd][1],
+                        coordinates[stationaryEnd + 10][0], coordinates[stationaryEnd + 10][1]
+                    ) : minMovementThreshold + 1; // Assume movement if near end
+                
+                console.log(`       📏 Movement before: ${Math.round(beforeDistance)}m, after: ${Math.round(afterDistance)}m`);
+                
+                // Only add if there's meaningful movement before or after
+                if (beforeDistance > minMovementThreshold || afterDistance > minMovementThreshold) {
+                    filteredStops++;
+                    stops.push({
+                        lat: avgLat,
+                        lng: avgLng,
+                        startTime: timestamps[stationaryStart],
+                        endTime: timestamps[stationaryEnd],
+                        duration: stationaryDuration,
+                        durationMinutes: Math.round(stationaryDuration / 60),
+                        pointCount: pointCount,
+                        beforeMovement: Math.round(beforeDistance),
+                        afterMovement: Math.round(afterDistance)
+                    });
+                    
+                    console.log(`   ✅ VALID STOP: ${Math.round(stationaryDuration / 60)}min at (${avgLat.toFixed(6)}, ${avgLng.toFixed(6)}) - ${pointCount} GPS points`);
+                } else {
+                    console.log(`   ❌ Rejected: insufficient movement (${Math.round(beforeDistance)}m, ${Math.round(afterDistance)}m)`);
+                }
             }
+            
+            // Move to the next region
+            i = Math.max(stationaryEnd + 1, i + 1);
         }
 
-        console.log(`Detected ${stops.length} stops longer than ${minStopDurationMinutes} minutes:`, stops);
+        console.log(`🏁 Stop detection complete:`);
+        console.log(`   🚩 Candidate stops found: ${candidateStops}`);
+        console.log(`   ✅ Valid stops after filtering: ${filteredStops}`);
+        console.log(`   📋 Final stops list:`, stops);
+
+        // If no stops found, add a test stop for debugging (middle of route)
+        if (stops.length === 0 && coordinates.length > 0) {
+            const midIndex = Math.floor(coordinates.length / 2);
+            const testStop = {
+                lat: coordinates[midIndex][0],
+                lng: coordinates[midIndex][1],
+                startTime: timestamps[midIndex],
+                endTime: timestamps[midIndex] + 600, // 10 min test duration
+                duration: 600,
+                durationMinutes: 10,
+                pointCount: 1,
+                beforeMovement: 100,
+                afterMovement: 100,
+                isTestStop: true
+            };
+            stops.push(testStop);
+            console.log(`🧪 Added test stop for debugging at route midpoint: (${testStop.lat.toFixed(6)}, ${testStop.lng.toFixed(6)})`);
+        }
+
         return stops;
     }
 
@@ -374,7 +441,7 @@ class InstagramMediaGenerator {
     async getNearbyPlaces(minLat, maxLat, minLng, maxLng) {
         try {
             const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
-            const url = `https://nominatim.openstreetmap.org/search?format=json&q=suburb&limit=20&bounded=1&viewbox=${bbox}&addressdetails=1&extratags=1&namedetails=1&accept-language=en`;
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=suburb&limit=50&bounded=1&viewbox=${bbox}&addressdetails=1&extratags=1&namedetails=1&accept-language=en`;
             
             console.log('Fetching places from:', url); // Debug logging
             
@@ -407,12 +474,12 @@ class InstagramMediaGenerator {
             
             console.log('Filtered places:', filteredPlaces); // Debug logging
             
-            // Remove duplicates by name and limit to 6 most relevant
+            // Remove duplicates by name and limit to 20 most relevant
             const uniquePlaces = filteredPlaces
                 .filter((place, index, self) => 
                     index === self.findIndex(p => p.name === place.name)
                 )
-                .slice(0, 6);
+                .slice(0, 20);
                 
             console.log('Final unique places:', uniquePlaces); // Debug logging
             return uniquePlaces;
@@ -504,10 +571,88 @@ class InstagramMediaGenerator {
                 height - (offsetY + (lat - minLat) * scale) // Flip Y axis
             ]);
 
-            // Draw route path
             ctx.save();
-            
-            // Set smooth line properties for stylized appearance
+
+            // Draw place names FIRST (under the route) with 40% transparency
+            console.log('Places found:', places.length, places); // Debug logging
+            if (places.length > 0) {
+                // Parse the route text color and make it 40% transparent (60% opacity)
+                const color = this.elements.routeTextColor.value;
+                let transparentColor;
+                if (color.startsWith('#')) {
+                    // Convert hex to rgba with 60% opacity
+                    const r = parseInt(color.slice(1, 3), 16);
+                    const g = parseInt(color.slice(3, 5), 16);
+                    const b = parseInt(color.slice(5, 7), 16);
+                    transparentColor = `rgba(${r}, ${g}, ${b}, 0.6)`;
+                } else {
+                    // Fallback for other color formats
+                    transparentColor = 'rgba(255, 255, 255, 0.6)';
+                }
+                
+                ctx.fillStyle = transparentColor;
+                ctx.font = 'bold 20px Geist, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Add text shadow for visibility even at low opacity
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+
+                places.forEach((place, index) => {
+                    const lat = parseFloat(place.lat);
+                    const lng = parseFloat(place.lon);
+                    
+                    console.log(`Place ${index}:`, place.name, 'at', lat, lng); // Debug logging
+                    
+                    // More lenient bounds check
+                    const expandedMinLat = minLat - padding * 0.5;
+                    const expandedMaxLat = maxLat + padding * 0.5;
+                    const expandedMinLng = minLng - padding * 0.5;
+                    const expandedMaxLng = maxLng + padding * 0.5;
+                    
+                    if (lat >= expandedMinLat && lat <= expandedMaxLat && lng >= expandedMinLng && lng <= expandedMaxLng) {
+                        const x = offsetX + (lng - minLng) * scale;
+                        const y = height - (offsetY + (lat - minLat) * scale);
+                        
+                        console.log(`Drawing place at canvas coords:`, x, y); // Debug logging
+                        
+                        // Extract suburb name from display_name or use name
+                        let placeName = place.name;
+                        if (place.address) {
+                            if (place.address.suburb) {
+                                placeName = place.address.suburb;
+                            } else if (place.address.neighbourhood) {
+                                placeName = place.address.neighbourhood;
+                            } else if (place.address.town) {
+                                placeName = place.address.town;
+                            } else if (place.address.city) {
+                                placeName = place.address.city;
+                            }
+                        }
+                        
+                        if (placeName) {
+                            const upperCaseName = placeName.toUpperCase();
+                            console.log(`Drawing text: "${upperCaseName}" at (${x}, ${y})`); // Debug logging
+                            ctx.fillText(upperCaseName, x, y);
+                        }
+                    } else {
+                        console.log(`Place ${place.name} outside bounds`); // Debug logging
+                    }
+                });
+            } else {
+                console.log('No places found or places array empty'); // Debug logging
+            }
+
+            // Reset shadow for route elements
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Draw route path OVER the place names
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
             ctx.lineWidth = 8;
             ctx.lineCap = 'round';
@@ -551,89 +696,42 @@ class InstagramMediaGenerator {
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            // Draw stop markers (red dots for 15+ minute stops)
+            // Draw stop markers (pink dots for 10+ minute stops)
+            console.log(`🩷 Attempting to draw ${stops.length} stop markers`);
             if (stops.length > 0) {
-                console.log(`Drawing ${stops.length} stop markers`);
+                console.log(`   📍 Route bounds: lat(${minLat.toFixed(6)} to ${maxLat.toFixed(6)}), lng(${minLng.toFixed(6)} to ${maxLng.toFixed(6)})`);
+                console.log(`   📐 Canvas scale: ${scale.toFixed(2)}, offset: (${offsetX.toFixed(1)}, ${offsetY.toFixed(1)})`);
+                
                 stops.forEach((stop, index) => {
                     // Convert stop coordinates to canvas pixels
                     const stopX = offsetX + (stop.lng - minLng) * scale;
                     const stopY = height - (offsetY + (stop.lat - minLat) * scale);
                     
-                    // Draw pink stop marker
-                    ctx.fillStyle = '#FF69B4'; // Hot pink color
-                    ctx.beginPath();
-                    ctx.arc(stopX, stopY, 6, 0, 2 * Math.PI);
-                    ctx.fill();
+                    const stopType = stop.isTestStop ? '🧪 TEST STOP' : '🚩 REAL STOP';
+                    console.log(`   🩷 Stop ${index + 1} ${stopType}: GPS(${stop.lat.toFixed(6)}, ${stop.lng.toFixed(6)}) → Canvas(${stopX.toFixed(1)}, ${stopY.toFixed(1)}) - ${stop.durationMinutes}min`);
                     
-                    // Add white border
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                    
-                    console.log(`Drew stop marker ${index + 1} at (${stopX}, ${stopY}) for ${stop.durationMinutes}min stop`);
-                });
-            }
-
-            // Draw place names
-            console.log('Places found:', places.length, places); // Debug logging
-            if (places.length > 0) {
-                ctx.fillStyle = this.elements.routeTextColor.value;
-                ctx.font = 'bold 20px Geist, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                
-                // Add stronger text shadow for better visibility
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                ctx.shadowBlur = 4;
-                ctx.shadowOffsetX = 2;
-                ctx.shadowOffsetY = 2;
-
-                places.forEach((place, index) => {
-                    const lat = parseFloat(place.lat);
-                    const lng = parseFloat(place.lon);
-                    
-                    console.log(`Place ${index}:`, place.name, 'at', lat, lng); // Debug logging
-                    
-                    // More lenient bounds check
-                    const expandedMinLat = minLat - padding * 0.5;
-                    const expandedMaxLat = maxLat + padding * 0.5;
-                    const expandedMinLng = minLng - padding * 0.5;
-                    const expandedMaxLng = maxLng + padding * 0.5;
-                    
-                    if (lat >= expandedMinLat && lat <= expandedMaxLat && lng >= expandedMinLng && lng <= expandedMaxLng) {
-                        const x = offsetX + (lng - minLng) * scale;
-                        const y = height - (offsetY + (lat - minLat) * scale);
+                    // Check if the stop is within canvas bounds
+                    if (stopX >= 0 && stopX <= width && stopY >= 0 && stopY <= height) {
+                        console.log(`     ✅ Drawing pink dot within canvas bounds`);
                         
-                        console.log(`Drawing place at canvas coords:`, x, y); // Debug logging
+                        // Draw pink stop marker
+                        ctx.fillStyle = '#FF69B4'; // Hot pink color
+                        ctx.beginPath();
+                        ctx.arc(stopX, stopY, 8, 0, 2 * Math.PI); // Increased size to 8px
+                        ctx.fill();
                         
-                        // Extract suburb name from display_name or use name
-                        let placeName = place.name;
-                        if (place.address) {
-                            if (place.address.suburb) {
-                                placeName = place.address.suburb;
-                            } else if (place.address.neighbourhood) {
-                                placeName = place.address.neighbourhood;
-                            } else if (place.address.town) {
-                                placeName = place.address.town;
-                            } else if (place.address.city) {
-                                placeName = place.address.city;
-                            }
-                        }
+                        // Add white border
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                        ctx.lineWidth = 3; // Increased border width
+                        ctx.stroke();
                         
-                        // Allow full suburb names to be displayed
-                        // Removed artificial character limit for better readability
-                        
-                        if (placeName) {
-                            const upperCaseName = placeName.toUpperCase();
-                            console.log(`Drawing text: "${upperCaseName}" at (${x}, ${y})`); // Debug logging
-                            ctx.fillText(upperCaseName, x, y);
-                        }
+                        console.log(`     ✅ Pink dot drawn successfully at (${stopX.toFixed(1)}, ${stopY.toFixed(1)})`);
                     } else {
-                        console.log(`Place ${place.name} outside bounds`); // Debug logging
+                        console.log(`     ❌ Stop outside canvas bounds - X: ${stopX.toFixed(1)} (0-${width}), Y: ${stopY.toFixed(1)} (0-${height})`);
                     }
                 });
             } else {
-                console.log('No places found or places array empty'); // Debug logging
+                console.log(`   ❌ No stops detected - no pink dots to draw`);
             }
 
             ctx.restore();
