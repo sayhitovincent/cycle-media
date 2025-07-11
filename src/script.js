@@ -14,6 +14,7 @@ class InstagramMediaGenerator {
         this.selectedImageIndex = -1;
         this.draggedIndex = null;
         this.squareSliderIndex = 0;
+        this.currentActivity = null; // Store current Strava activity for route overlay
         
         // Individual image positioning for each format
         this.imagePositions = {
@@ -175,6 +176,154 @@ class InstagramMediaGenerator {
 
         
         return true;
+    }
+
+    /**
+     * Decode Google polyline format used by Strava
+     * Based on Google's polyline encoding algorithm
+     */
+    decodePolyline(encoded) {
+        const coords = [];
+        let index = 0;
+        let lat = 0;
+        let lng = 0;
+
+        while (index < encoded.length) {
+            let b;
+            let shift = 0;
+            let result = 0;
+
+            // Decode latitude
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+
+            const deltaLat = (result & 1) ? ~(result >> 1) : (result >> 1);
+            lat += deltaLat;
+
+            shift = 0;
+            result = 0;
+
+            // Decode longitude
+            do {
+                b = encoded.charCodeAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+
+            const deltaLng = (result & 1) ? ~(result >> 1) : (result >> 1);
+            lng += deltaLng;
+
+            coords.push([lat / 1e5, lng / 1e5]);
+        }
+
+        return coords;
+    }
+
+    /**
+     * Draw route overlay on canvas
+     */
+    drawRouteOverlay(ctx, width, height, formatKey) {
+        if (!this.currentActivity || !this.currentActivity.map || !this.currentActivity.map.summary_polyline) {
+            return;
+        }
+
+        const polyline = this.currentActivity.map.summary_polyline;
+        if (!polyline) return;
+
+        try {
+            const coords = this.decodePolyline(polyline);
+            if (coords.length < 2) return;
+
+            // Calculate bounding box
+            let minLat = coords[0][0], maxLat = coords[0][0];
+            let minLng = coords[0][1], maxLng = coords[0][1];
+
+            coords.forEach(([lat, lng]) => {
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+                minLng = Math.min(minLng, lng);
+                maxLng = Math.max(maxLng, lng);
+            });
+
+            // Create padding around the route
+            const latRange = maxLat - minLat;
+            const lngRange = maxLng - minLng;
+            const padding = Math.max(latRange, lngRange) * 0.1;
+
+            minLat -= padding;
+            maxLat += padding;
+            minLng -= padding;
+            maxLng += padding;
+
+            // Calculate scale factors
+            const scaleX = width / (maxLng - minLng);
+            const scaleY = height / (maxLat - minLat);
+            const scale = Math.min(scaleX, scaleY);
+
+            // Center the route
+            const offsetX = (width - (maxLng - minLng) * scale) / 2;
+            const offsetY = (height - (maxLat - minLat) * scale) / 2;
+
+            // Convert coordinates to canvas pixels
+            const canvasCoords = coords.map(([lat, lng]) => [
+                offsetX + (lng - minLng) * scale,
+                height - (offsetY + (lat - minLat) * scale) // Flip Y axis
+            ]);
+
+            // Draw route path
+            ctx.save();
+            
+            // Set smooth line properties for stylized appearance
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 2;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            
+            // Draw single solid white route line
+            ctx.beginPath();
+            ctx.moveTo(canvasCoords[0][0], canvasCoords[0][1]);
+            canvasCoords.slice(1).forEach(([x, y]) => {
+                ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Reset shadow for dots
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Draw start point (white dot)
+            const startPoint = canvasCoords[0];
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(startPoint[0], startPoint[1], 7, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            // Draw end point (white dot)
+            const endPoint = canvasCoords[canvasCoords.length - 1];
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(endPoint[0], endPoint[1], 7, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.restore();
+        } catch (error) {
+            console.warn('Error drawing route overlay:', error);
+        }
     }
 
     handleImageUpload(files) {
@@ -567,8 +716,8 @@ class InstagramMediaGenerator {
         // Draw background
         this.drawBackground(ctx, canvas.width, canvas.height, formatKey);
         
-        // Draw overlay (only on first image for square format)
-        if (formatKey !== 'square' || this.squareSliderIndex === 0) {
+        // Draw overlay (on first and second image for square format)
+        if (formatKey !== 'square' || this.squareSliderIndex === 0 || this.squareSliderIndex === 1) {
             this.drawOverlay(ctx, canvas.width, canvas.height);
         }
         
@@ -638,9 +787,18 @@ class InstagramMediaGenerator {
     }
 
     drawContent(ctx, width, height, formatKey) {
-        // For square format, only draw title/stats on the first image (index 0)
-        if (formatKey === 'square' && this.squareSliderIndex !== 0) {
-            return; // Skip drawing content for non-first images in square slideshow
+        // For square format, handle different overlays based on slider index
+        if (formatKey === 'square') {
+            if (this.squareSliderIndex === 0) {
+                // First image: draw title/stats (existing behavior)
+            } else if (this.squareSliderIndex === 1) {
+                // Second image: draw route overlay only
+                this.drawRouteOverlay(ctx, width, height, formatKey);
+                return;
+            } else {
+                // Other images: no overlay
+                return;
+            }
         }
         
         const textColor = this.elements.textColor.value;
@@ -832,6 +990,9 @@ window.addEventListener('stravaActivityImported', (event) => {
         window.mediaGenerator.elements.distance.value = statsData.distance;
         window.mediaGenerator.elements.time.value = statsData.time;
         window.mediaGenerator.elements.elevation.value = statsData.elevation;
+        
+        // Store activity data for route overlay
+        window.mediaGenerator.currentActivity = activity;
         
         // Regenerate previews with new data
         window.mediaGenerator.generateAllPreviews();
