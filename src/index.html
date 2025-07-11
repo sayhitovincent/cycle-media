@@ -161,6 +161,16 @@
                         </div>
 
                         <div class="input-group">
+                            <label for="route-opacity">Route Overlay: <span id="route-opacity-value">25%</span></label>
+                            <input type="range" id="route-opacity" min="0" max="80" value="25">
+                        </div>
+
+                        <div class="input-group">
+                            <label for="route-text-color">Route Text Color</label>
+                            <input type="color" id="route-text-color" value="#ffffff">
+                        </div>
+
+                        <div class="input-group">
                             <label for="background-color">Background Color</label>
                             <input type="color" id="background-color" value="#e8e6e3">
                         </div>
@@ -176,6 +186,12 @@
                     <div class="format-section square">
                         <div class="canvas-container">
                             <canvas id="square-canvas" width="1080" height="1080"></canvas>
+                            
+                            <!-- Route loading overlay -->
+                            <div class="route-loading-overlay" id="route-loading-overlay">
+                                <div class="route-loading-spinner"></div>
+                                <div class="route-loading-text">Loading route map...</div>
+                            </div>
                             
                             <!-- Instagram-style slider controls -->
                             <div class="instagram-slider-controls" id="square-slider-controls">

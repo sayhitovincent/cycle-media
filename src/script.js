@@ -15,6 +15,8 @@ class InstagramMediaGenerator {
         this.draggedIndex = null;
         this.squareSliderIndex = 0;
         this.currentActivity = null; // Store current Strava activity for route overlay
+        this.activityStreams = null; // Store detailed GPS data for stops detection
+        this.isDrawingRoute = false; // Prevent concurrent route drawing
         
         // Individual image positioning for each format
         this.imagePositions = {
@@ -43,8 +45,12 @@ class InstagramMediaGenerator {
             imageGallery: document.getElementById('image-gallery'),
             opacity: document.getElementById('opacity'),
             opacityValue: document.getElementById('opacity-value'),
+            routeOpacity: document.getElementById('route-opacity'),
+            routeOpacityValue: document.getElementById('route-opacity-value'),
             textColor: document.getElementById('text-color'),
-            backgroundColor: document.getElementById('background-color')
+            routeTextColor: document.getElementById('route-text-color'),
+            backgroundColor: document.getElementById('background-color'),
+            routeLoadingOverlay: document.getElementById('route-loading-overlay')
         };
     }
 
@@ -72,6 +78,15 @@ class InstagramMediaGenerator {
             this.elements.opacityValue.textContent = `${this.elements.opacity.value}%`;
             this.generateAllPreviews();
         });
+
+        // Route opacity slider
+        this.elements.routeOpacity.addEventListener('input', () => {
+            this.elements.routeOpacityValue.textContent = `${this.elements.routeOpacity.value}%`;
+            this.generateAllPreviews();
+        });
+
+        // Route text color
+        this.elements.routeTextColor.addEventListener('change', () => this.generateAllPreviews());
 
         // File upload
         this.elements.bgUpload.addEventListener('change', (e) => {
@@ -223,19 +238,225 @@ class InstagramMediaGenerator {
     }
 
     /**
+     * Fetch detailed GPS streams for stop detection
+     */
+    async fetchActivityStreams(activityId) {
+        try {
+            const baseUrl = window.stravaIntegration ? window.stravaIntegration.baseUrl : 'http://localhost:3001';
+            const response = await fetch(`${baseUrl}/api/activities/${activityId}/streams`, {
+                credentials: 'include'
+            });
+            
+            if (!response.ok) {
+                console.warn('No GPS streams available for this activity');
+                return null;
+            }
+            
+            const streams = await response.json();
+            console.log('Fetched activity streams:', streams);
+            return streams;
+        } catch (error) {
+            console.error('Error fetching activity streams:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Detect stops longer than 15 minutes in GPS data
+     */
+    detectStops(streams, minStopDurationMinutes = 15) {
+        if (!streams || !streams.coordinates || !streams.timestamps) {
+            return [];
+        }
+
+        const stops = [];
+        const coordinates = streams.coordinates;
+        const timestamps = streams.timestamps;
+        const minStopDuration = minStopDurationMinutes * 60; // Convert to seconds
+        const maxStopRadius = 50; // Maximum radius in meters to consider as "same location"
+
+        let currentStopStart = null;
+        let currentStopIndex = null;
+
+        for (let i = 1; i < coordinates.length; i++) {
+            const [lat1, lng1] = coordinates[i - 1];
+            const [lat2, lng2] = coordinates[i];
+            const timeDiff = timestamps[i] - timestamps[i - 1];
+            
+            // Calculate distance between consecutive points using Haversine formula
+            const distance = this.calculateDistance(lat1, lng1, lat2, lng2);
+            
+            // If we're moving very slowly or stopped
+            if (distance < maxStopRadius && timeDiff > 0) {
+                if (currentStopStart === null) {
+                    currentStopStart = timestamps[i - 1];
+                    currentStopIndex = i - 1;
+                }
+            } else {
+                // We're moving - check if we had a long enough stop
+                if (currentStopStart !== null) {
+                    const stopDuration = timestamps[i - 1] - currentStopStart;
+                    if (stopDuration >= minStopDuration) {
+                        stops.push({
+                            lat: coordinates[currentStopIndex][0],
+                            lng: coordinates[currentStopIndex][1],
+                            startTime: currentStopStart,
+                            duration: stopDuration,
+                            durationMinutes: Math.round(stopDuration / 60)
+                        });
+                    }
+                    currentStopStart = null;
+                    currentStopIndex = null;
+                }
+            }
+        }
+
+        // Check for a stop at the end of the activity
+        if (currentStopStart !== null) {
+            const stopDuration = timestamps[timestamps.length - 1] - currentStopStart;
+            if (stopDuration >= minStopDuration) {
+                stops.push({
+                    lat: coordinates[currentStopIndex][0],
+                    lng: coordinates[currentStopIndex][1],
+                    startTime: currentStopStart,
+                    duration: stopDuration,
+                    durationMinutes: Math.round(stopDuration / 60)
+                });
+            }
+        }
+
+        console.log(`Detected ${stops.length} stops longer than ${minStopDurationMinutes} minutes:`, stops);
+        return stops;
+    }
+
+    /**
+     * Calculate distance between two GPS coordinates using Haversine formula
+     */
+    calculateDistance(lat1, lng1, lat2, lng2) {
+        const R = 6371000; // Earth's radius in meters
+        const dLat = this.toRadians(lat2 - lat1);
+        const dLng = this.toRadians(lng2 - lng1);
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
+                Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
+
+    /**
+     * Convert degrees to radians
+     */
+    toRadians(degrees) {
+        return degrees * (Math.PI / 180);
+    }
+
+    /**
+     * Show route loading overlay
+     */
+    showRouteLoading() {
+        if (this.elements.routeLoadingOverlay) {
+            this.elements.routeLoadingOverlay.classList.add('visible');
+        }
+    }
+
+    /**
+     * Hide route loading overlay
+     */
+    hideRouteLoading() {
+        if (this.elements.routeLoadingOverlay) {
+            this.elements.routeLoadingOverlay.classList.remove('visible');
+        }
+    }
+
+    /**
+     * Get nearby places using OpenStreetMap Nominatim API
+     */
+    async getNearbyPlaces(minLat, maxLat, minLng, maxLng) {
+        try {
+            const bbox = `${minLng},${minLat},${maxLng},${maxLat}`;
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=suburb&limit=20&bounded=1&viewbox=${bbox}&addressdetails=1&extratags=1&namedetails=1&accept-language=en`;
+            
+            console.log('Fetching places from:', url); // Debug logging
+            
+            const response = await fetch(url, {
+                headers: {
+                    'User-Agent': 'CyclingMediaGenerator/1.0'
+                }
+            });
+            
+            if (!response.ok) {
+                console.warn('API response not ok:', response.status, response.statusText);
+                return [];
+            }
+            
+            const places = await response.json();
+            console.log('Raw API response:', places); // Debug logging
+            
+            // Be more lenient with filtering - accept more place types
+            const filteredPlaces = places.filter(place => {
+                const type = place.type;
+                const category = place.class;
+                const placeTypes = ['suburb', 'neighbourhood', 'town', 'city', 'village', 'hamlet', 'residential', 'locality'];
+                
+                const isPlace = category === 'place' || category === 'boundary' || category === 'landuse';
+                const hasGoodType = placeTypes.includes(type);
+                const hasName = place.name && place.name.length > 0;
+                
+                return (isPlace || hasGoodType) && hasName;
+            });
+            
+            console.log('Filtered places:', filteredPlaces); // Debug logging
+            
+            // Remove duplicates by name and limit to 6 most relevant
+            const uniquePlaces = filteredPlaces
+                .filter((place, index, self) => 
+                    index === self.findIndex(p => p.name === place.name)
+                )
+                .slice(0, 6);
+                
+            console.log('Final unique places:', uniquePlaces); // Debug logging
+            return uniquePlaces;
+        } catch (error) {
+            console.error('Error fetching nearby places:', error);
+            return [];
+        }
+    }
+
+    /**
      * Draw route overlay on canvas
      */
-    drawRouteOverlay(ctx, width, height, formatKey) {
+    async drawRouteOverlay(ctx, width, height, formatKey) {
         if (!this.currentActivity || !this.currentActivity.map || !this.currentActivity.map.summary_polyline) {
             return;
         }
 
+        // Prevent concurrent route drawing
+        if (this.isDrawingRoute) {
+            return;
+        }
+        this.isDrawingRoute = true;
+
+        // Show loading overlay while processing route
+        this.showRouteLoading();
+
         const polyline = this.currentActivity.map.summary_polyline;
-        if (!polyline) return;
+        if (!polyline) {
+            this.hideRouteLoading();
+            this.isDrawingRoute = false;
+            return;
+        }
 
         try {
             const coords = this.decodePolyline(polyline);
             if (coords.length < 2) return;
+
+            // Fetch activity streams for stop detection if not already loaded
+            if (!this.activityStreams && this.currentActivity.id) {
+                this.activityStreams = await this.fetchActivityStreams(this.currentActivity.id);
+            }
+
+            // Detect stops
+            const stops = this.activityStreams ? this.detectStops(this.activityStreams) : [];
 
             // Calculate bounding box
             let minLat = coords[0][0], maxLat = coords[0][0];
@@ -248,11 +469,21 @@ class InstagramMediaGenerator {
                 maxLng = Math.max(maxLng, lng);
             });
 
-            // Create padding around the route
+            // Create padding around the route for place queries
             const latRange = maxLat - minLat;
             const lngRange = maxLng - minLng;
-            const padding = Math.max(latRange, lngRange) * 0.1;
+            const queryPadding = Math.max(latRange, lngRange) * 0.3; // Larger area for places
 
+            // Get nearby places
+            const places = await this.getNearbyPlaces(
+                minLat - queryPadding, 
+                maxLat + queryPadding, 
+                minLng - queryPadding, 
+                maxLng + queryPadding
+            );
+
+            // Create visual padding around the route
+            const padding = Math.max(latRange, lngRange) * 0.1;
             minLat -= padding;
             maxLat += padding;
             minLng -= padding;
@@ -320,9 +551,98 @@ class InstagramMediaGenerator {
             ctx.lineWidth = 1;
             ctx.stroke();
 
+            // Draw stop markers (red dots for 15+ minute stops)
+            if (stops.length > 0) {
+                console.log(`Drawing ${stops.length} stop markers`);
+                stops.forEach((stop, index) => {
+                    // Convert stop coordinates to canvas pixels
+                    const stopX = offsetX + (stop.lng - minLng) * scale;
+                    const stopY = height - (offsetY + (stop.lat - minLat) * scale);
+                    
+                    // Draw pink stop marker
+                    ctx.fillStyle = '#FF69B4'; // Hot pink color
+                    ctx.beginPath();
+                    ctx.arc(stopX, stopY, 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Add white border
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    console.log(`Drew stop marker ${index + 1} at (${stopX}, ${stopY}) for ${stop.durationMinutes}min stop`);
+                });
+            }
+
+            // Draw place names
+            console.log('Places found:', places.length, places); // Debug logging
+            if (places.length > 0) {
+                ctx.fillStyle = this.elements.routeTextColor.value;
+                ctx.font = 'bold 20px Geist, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Add stronger text shadow for better visibility
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+
+                places.forEach((place, index) => {
+                    const lat = parseFloat(place.lat);
+                    const lng = parseFloat(place.lon);
+                    
+                    console.log(`Place ${index}:`, place.name, 'at', lat, lng); // Debug logging
+                    
+                    // More lenient bounds check
+                    const expandedMinLat = minLat - padding * 0.5;
+                    const expandedMaxLat = maxLat + padding * 0.5;
+                    const expandedMinLng = minLng - padding * 0.5;
+                    const expandedMaxLng = maxLng + padding * 0.5;
+                    
+                    if (lat >= expandedMinLat && lat <= expandedMaxLat && lng >= expandedMinLng && lng <= expandedMaxLng) {
+                        const x = offsetX + (lng - minLng) * scale;
+                        const y = height - (offsetY + (lat - minLat) * scale);
+                        
+                        console.log(`Drawing place at canvas coords:`, x, y); // Debug logging
+                        
+                        // Extract suburb name from display_name or use name
+                        let placeName = place.name;
+                        if (place.address) {
+                            if (place.address.suburb) {
+                                placeName = place.address.suburb;
+                            } else if (place.address.neighbourhood) {
+                                placeName = place.address.neighbourhood;
+                            } else if (place.address.town) {
+                                placeName = place.address.town;
+                            } else if (place.address.city) {
+                                placeName = place.address.city;
+                            }
+                        }
+                        
+                        // Allow full suburb names to be displayed
+                        // Removed artificial character limit for better readability
+                        
+                        if (placeName) {
+                            const upperCaseName = placeName.toUpperCase();
+                            console.log(`Drawing text: "${upperCaseName}" at (${x}, ${y})`); // Debug logging
+                            ctx.fillText(upperCaseName, x, y);
+                        }
+                    } else {
+                        console.log(`Place ${place.name} outside bounds`); // Debug logging
+                    }
+                });
+            } else {
+                console.log('No places found or places array empty'); // Debug logging
+            }
+
             ctx.restore();
         } catch (error) {
             console.warn('Error drawing route overlay:', error);
+        } finally {
+            // Hide loading overlay and reset drawing state
+            this.hideRouteLoading();
+            this.isDrawingRoute = false;
         }
     }
 
@@ -615,6 +935,9 @@ class InstagramMediaGenerator {
     prevSquareSlide() {
         if (this.uploadedImages.length <= 1) return;
         
+        // Hide loading overlay when navigating away from route slide
+        this.hideRouteLoading();
+        
         this.squareSliderIndex = this.squareSliderIndex > 0 
             ? this.squareSliderIndex - 1 
             : this.uploadedImages.length - 1;
@@ -627,6 +950,9 @@ class InstagramMediaGenerator {
     nextSquareSlide() {
         if (this.uploadedImages.length <= 1) return;
         
+        // Hide loading overlay when navigating away from route slide
+        this.hideRouteLoading();
+        
         this.squareSliderIndex = this.squareSliderIndex < this.uploadedImages.length - 1 
             ? this.squareSliderIndex + 1 
             : 0;
@@ -638,6 +964,9 @@ class InstagramMediaGenerator {
 
     goToSquareSlide(index) {
         if (index >= 0 && index < this.uploadedImages.length) {
+            // Hide loading overlay when navigating away from route slide
+            this.hideRouteLoading();
+            
             this.squareSliderIndex = index;
             this.updateSquareSlider();
             this.updatePositionControls(); // Update position controls for new image
@@ -699,13 +1028,14 @@ class InstagramMediaGenerator {
         }
     }
 
-    generateAllPreviews() {
-        Object.keys(this.formats).forEach(formatKey => {
-            this.generatePreview(formatKey);
-        });
+    async generateAllPreviews() {
+        // Generate previews sequentially to avoid overwhelming the API
+        for (const formatKey of Object.keys(this.formats)) {
+            await this.generatePreview(formatKey);
+        }
     }
 
-    generatePreview(formatKey) {
+    async generatePreview(formatKey) {
         const format = this.formats[formatKey];
         const ctx = format.ctx;
         const canvas = format.canvas;
@@ -717,12 +1047,13 @@ class InstagramMediaGenerator {
         this.drawBackground(ctx, canvas.width, canvas.height, formatKey);
         
         // Draw overlay (on first and second image for square format)
-        if (formatKey !== 'square' || this.squareSliderIndex === 0 || this.squareSliderIndex === 1) {
-            this.drawOverlay(ctx, canvas.width, canvas.height);
+        if (formatKey !== 'square' || this.squareSliderIndex === 0 || (this.squareSliderIndex === 1 && this.uploadedImages.length >= 2)) {
+            const useRouteSettings = formatKey === 'square' && this.squareSliderIndex === 1 && this.uploadedImages.length >= 2;
+            this.drawOverlay(ctx, canvas.width, canvas.height, useRouteSettings);
         }
         
         // Draw content
-        this.drawContent(ctx, canvas.width, canvas.height, formatKey);
+        await this.drawContent(ctx, canvas.width, canvas.height, formatKey);
     }
 
     drawBackground(ctx, width, height, formatKey) {
@@ -780,21 +1111,23 @@ class InstagramMediaGenerator {
         ctx.fillRect(0, 0, width, height);
     }
 
-    drawOverlay(ctx, width, height) {
-        const opacity = parseInt(this.elements.opacity.value) / 100;
+    drawOverlay(ctx, width, height, useRouteSettings = false) {
+        const opacityElement = useRouteSettings ? this.elements.routeOpacity : this.elements.opacity;
+        const opacity = parseInt(opacityElement.value) / 100;
         ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
         ctx.fillRect(0, 0, width, height);
     }
 
-    drawContent(ctx, width, height, formatKey) {
+    async drawContent(ctx, width, height, formatKey) {
         // For square format, handle different overlays based on slider index
         if (formatKey === 'square') {
-            if (this.squareSliderIndex === 0) {
-                // First image: draw title/stats (existing behavior)
-            } else if (this.squareSliderIndex === 1) {
-                // Second image: draw route overlay only
-                this.drawRouteOverlay(ctx, width, height, formatKey);
+            if (this.squareSliderIndex === 1 && this.uploadedImages.length >= 2) {
+                // Second image: draw route overlay only (only if there are at least 2 images)
+                await this.drawRouteOverlay(ctx, width, height, formatKey);
                 return;
+            } else if (this.squareSliderIndex === 0) {
+                // First image: draw title/stats (existing behavior) 
+                // Continue to standard content below
             } else {
                 // Other images: no overlay
                 return;
@@ -991,8 +1324,13 @@ window.addEventListener('stravaActivityImported', (event) => {
         window.mediaGenerator.elements.time.value = statsData.time;
         window.mediaGenerator.elements.elevation.value = statsData.elevation;
         
-        // Store activity data for route overlay
+        // Ensure slider is reset to first image when importing new activity
+        window.mediaGenerator.squareSliderIndex = 0;
+        window.mediaGenerator.updateSquareSlider();
+        
+        // Store activity data for route overlay and clear previous streams
         window.mediaGenerator.currentActivity = activity;
+        window.mediaGenerator.activityStreams = null; // Clear previous streams to fetch new ones
         
         // Regenerate previews with new data
         window.mediaGenerator.generateAllPreviews();

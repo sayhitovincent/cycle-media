@@ -1010,8 +1010,8 @@ class StravaIntegration {
             description: activity.description || ''
         };
         
-        // Update the description field
-        this.updateDescription(statsData.description);
+        // Update the description field with Strava link
+        this.updateDescription(statsData.description, activity.id);
         
         // Trigger an event that your existing app can listen to
         window.dispatchEvent(new CustomEvent('stravaActivityImported', {
@@ -1019,7 +1019,7 @@ class StravaIntegration {
         }));
     }
 
-    updateDescription(description) {
+    updateDescription(description, activityId = null) {
         // Only run on main page, not integrations page
         const isIntegrationsPage = window.location.pathname.includes('integrations.html');
         if (isIntegrationsPage) {
@@ -1029,7 +1029,19 @@ class StravaIntegration {
         const descriptionField = document.getElementById('post-description');
         
         if (descriptionField) {
-            descriptionField.value = description;
+            let finalDescription = description || '';
+            
+            // Add Strava link if we have an activity ID
+            if (activityId) {
+                const stravaLink = `https://www.strava.com/activities/${activityId}`;
+                if (finalDescription) {
+                    finalDescription += ` | Find me training on Strava - ${stravaLink}`;
+                } else {
+                    finalDescription = `Find me training on Strava - ${stravaLink}`;
+                }
+            }
+            
+            descriptionField.value = finalDescription;
         }
     }
 
