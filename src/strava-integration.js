@@ -1,8 +1,7 @@
 class StravaIntegration {
     constructor() {
-        this.baseUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3001' 
-            : '/api';
+        this.baseUrl = null; // Will be set after loading config
+        this.config = null;
         this.user = null;
         this.activities = [];
         this.selectedActivity = null;
@@ -16,9 +15,49 @@ class StravaIntegration {
         this.retryAttempts = new Map();
         this.maxRetries = 3;
         
-        this.initializeElements();
-        this.bindEvents();
-        this.checkAuthStatus();
+        this.initialize();
+    }
+
+    async initialize() {
+        try {
+            await this.loadConfig();
+            this.initializeElements();
+            this.bindEvents();
+            this.checkAuthStatus();
+        } catch (error) {
+            console.error('Failed to initialize Strava integration:', error);
+            window.toast?.error('Failed to load Strava configuration', 'Configuration Error');
+        }
+    }
+
+    async loadConfig() {
+        try {
+            // Try to load config from backend
+            const configUrl = window.location.hostname === 'localhost' 
+                ? 'http://localhost:3001/api/config' 
+                : '/api/config';
+            
+            const response = await fetch(configUrl, {
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                this.config = await response.json();
+                this.baseUrl = this.config.backend.url;
+            } else {
+                throw new Error('Config endpoint not available');
+            }
+        } catch (error) {
+            console.warn('Could not load backend config, falling back to defaults:', error);
+            // Fallback to original logic
+            this.baseUrl = window.location.hostname === 'localhost' 
+                ? 'http://localhost:3001' 
+                : '/api';
+            this.config = {
+                backend: { url: this.baseUrl },
+                environment: 'unknown'
+            };
+        }
     }
 
     // Rate limiting and caching methods
@@ -154,11 +193,16 @@ class StravaIntegration {
     }
 
     createStravaUI() {
-        // Add activities button to header
-        this.addActivitiesButtonToHeader();
+        // Only create UI elements on the main page (index.html), not on integrations page
+        const isIntegrationsPage = window.location.pathname.includes('integrations.html');
         
-        // Create activities modal
-        this.createActivitiesModal();
+        if (!isIntegrationsPage) {
+            // Add activities button to header
+            this.addActivitiesButtonToHeader();
+            
+            // Create activities modal
+            this.createActivitiesModal();
+        }
     }
 
     addActivitiesButtonToHeader() {
@@ -181,6 +225,11 @@ class StravaIntegration {
     }
 
     createActivitiesModal() {
+        // Check if the modal already exists to prevent duplicates
+        if (document.getElementById('strava-modal')) {
+            return;
+        }
+
         const modal = document.createElement('div');
         modal.className = 'strava-modal hidden';
         modal.id = 'strava-modal';
@@ -208,13 +257,15 @@ class StravaIntegration {
 
     bindEvents() {
         document.addEventListener('click', (e) => {
-            if (e.target.id === 'strava-logout-btn') {
+            if (e.target.id === 'strava-connect-btn') {
                 // Handle both disconnect and connect actions
                 if (this.user) {
                     this.logout();
                 } else {
                     this.login();
                 }
+            } else if (e.target.id === 'strava-settings-btn') {
+                // Settings button has no action - just a placeholder
             } else if (e.target.id === 'browse-activities-btn') {
                 // Only show modal if connected and not disabled
                 if (!e.target.disabled) {
@@ -251,7 +302,12 @@ class StravaIntegration {
             const user = await this.rateLimitedFetch(`${this.baseUrl}/api/user`);
             this.user = user;
             this.showAuthenticatedUI();
-            await this.loadActivities();
+            
+            // Only load activities on the main page, not on integrations page
+            const isIntegrationsPage = window.location.pathname.includes('integrations.html');
+            if (!isIntegrationsPage) {
+                await this.loadActivities();
+            }
         } catch (error) {
             console.log('Not authenticated');
         }
@@ -334,25 +390,33 @@ class StravaIntegration {
         
         const statusDot = stravaCard.querySelector('.status-dot');
         const statusText = stravaCard.querySelector('.status-text');
-        const logoutBtn = stravaCard.querySelector('#strava-logout-btn');
+        const connectBtn = stravaCard.querySelector('#strava-connect-btn');
+        const settingsBtn = stravaCard.querySelector('#strava-settings-btn');
         
         if (isConnected) {
             stravaCard.classList.add('connected');
             stravaCard.classList.remove('disconnected');
             if (statusDot) statusDot.className = 'status-dot connected';
             if (statusText) statusText.textContent = 'Connected';
-            if (logoutBtn) {
-                logoutBtn.textContent = 'Disconnect';
-                logoutBtn.style.display = 'inline-block';
+            if (connectBtn) {
+                connectBtn.textContent = 'Disconnect Strava';
+                connectBtn.className = 'disconnect-btn'; // Red disconnect button
+            }
+            if (settingsBtn) {
+                settingsBtn.className = 'ghost-btn'; // Black ghost style for settings
+                settingsBtn.style.display = 'inline-block'; // Show settings when connected
             }
         } else {
             stravaCard.classList.remove('connected');
             stravaCard.classList.add('disconnected');
             if (statusDot) statusDot.className = 'status-dot disconnected';
             if (statusText) statusText.textContent = 'Not Connected';
-            if (logoutBtn) {
-                logoutBtn.textContent = 'Connect Strava';
-                logoutBtn.style.display = 'inline-block';
+            if (connectBtn) {
+                connectBtn.textContent = 'Connect Strava';
+                connectBtn.className = 'primary-btn'; // Primary style for connect
+            }
+            if (settingsBtn) {
+                settingsBtn.style.display = 'none'; // Hide settings when not connected
             }
         }
     }
@@ -412,7 +476,7 @@ class StravaIntegration {
             // Reload activities
             await this.loadActivities();
             
-            window.toast.success('Activities refreshed successfully', 'Refresh Complete');
+
             
         } catch (error) {
             console.error('Error refreshing activities:', error);
@@ -474,7 +538,7 @@ class StravaIntegration {
             // Automatically load photos for this activity
             await this.loadActivityPhotos(activityId);
             
-            window.toast.success('Activity refreshed successfully', 'Refresh Complete');
+
             
         } catch (error) {
             console.error('Error refreshing activity:', error);
@@ -527,8 +591,13 @@ class StravaIntegration {
                     <div class="activity-title-section">
                         <h3>${activity.name}</h3>
                         <div class="activity-meta">
-                            <span class="activity-type">${activity.sport_type || activity.type}</span>
-                            <span class="activity-date">${new Date(activity.start_date).toLocaleDateString()}</span>
+                            <div class="activity-meta-top">
+                                <span class="activity-type">${activity.sport_type || activity.type}</span>
+                                <span class="activity-date">${new Date(activity.start_date).toLocaleDateString()}</span>
+                                <button class="refresh-activity-btn mobile-inline" onclick="window.stravaIntegration.refreshActivity('${activity.id}')" title="Refresh this activity">
+                                    ⟳
+                                </button>
+                            </div>
                             <span class="activity-stats">
                                 ${(activity.distance / 1000).toFixed(1)} km • 
                                 ${Math.floor(activity.moving_time / 60)} min • 
@@ -538,7 +607,7 @@ class StravaIntegration {
                         </div>
                     </div>
                     <div class="activity-actions">
-                        <button class="refresh-activity-btn" onclick="window.stravaIntegration.refreshActivity('${activity.id}')" title="Refresh this activity">
+                        <button class="refresh-activity-btn desktop-only" onclick="window.stravaIntegration.refreshActivity('${activity.id}')" title="Refresh this activity">
                             ⟳
                         </button>
                         <button class="import-activity-btn" onclick="window.stravaIntegration.importFullActivity('${activity.id}')">
@@ -597,6 +666,12 @@ class StravaIntegration {
     }
 
     async loadMostRecentActivityStats() {
+        // Only run on main page, not integrations page
+        const isIntegrationsPage = window.location.pathname.includes('integrations.html');
+        if (isIntegrationsPage) {
+            return;
+        }
+
         // Only auto-load if fields are currently empty and we have activities
         if (this.activities.length > 0) {
             const mostRecentActivity = this.activities[0]; // Activities are already sorted by date (most recent first)
@@ -713,8 +788,9 @@ class StravaIntegration {
     clearFeaturedImages() {
         // Clear existing featured images in the media generator
         if (window.mediaGenerator) {
-            // Clear uploaded images array
+            // Clear uploaded images array and their hashes
             window.mediaGenerator.uploadedImages = [];
+            window.mediaGenerator.imageHashes = [];
             
             // Update the image gallery to reflect the changes (will show default placeholders)
             window.mediaGenerator.updateImageGallery();
@@ -916,6 +992,12 @@ class StravaIntegration {
     }
 
     importActivityStats(activity) {
+        // Only run on main page, not integrations page
+        const isIntegrationsPage = window.location.pathname.includes('integrations.html');
+        if (isIntegrationsPage) {
+            return;
+        }
+
         // This will integrate with your existing media generator
         // You can customize how the stats are displayed
         const statsData = {
@@ -938,6 +1020,12 @@ class StravaIntegration {
     }
 
     updateDescription(description) {
+        // Only run on main page, not integrations page
+        const isIntegrationsPage = window.location.pathname.includes('integrations.html');
+        if (isIntegrationsPage) {
+            return;
+        }
+
         const descriptionField = document.getElementById('post-description');
         
         if (descriptionField) {
@@ -956,8 +1044,3 @@ class StravaIntegration {
 
 
 }
-
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    window.stravaIntegration = new StravaIntegration();
-}); 

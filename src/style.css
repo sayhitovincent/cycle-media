@@ -22,9 +22,10 @@ body {
 /* Navigation */
 .main-nav {
     background: white;
-    border-bottom: 1px solid #e2e8f0;
     padding: 0;
     box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 1000;
 }
 
 .nav-content {
@@ -44,7 +45,6 @@ body {
     text-decoration: none;
     color: #64748b;
     font-weight: 500;
-    transition: all 0.2s;
     position: relative;
 }
 
@@ -110,7 +110,7 @@ body {
     border-radius: 24px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s;
     font-size: 0.875rem;
     white-space: nowrap;
     width: 160px;
@@ -164,7 +164,7 @@ body {
     border-radius: 24px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
     font-size: 0.875rem;
     white-space: nowrap;
     display: inline-flex;
@@ -292,7 +292,7 @@ body {
     border-radius: 24px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s;
     font-size: 0.875rem;
     text-decoration: none;
     display: inline-flex;
@@ -313,7 +313,7 @@ body {
     border-radius: 24px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s, border-color 0.2s;
     font-size: 0.875rem;
     text-decoration: none;
     display: inline-flex;
@@ -365,7 +365,7 @@ body {
     padding: 0.75rem 1.5rem;
     border-radius: 8px;
     font-weight: 600;
-    transition: all 0.2s;
+    transition: background-color 0.2s, box-shadow 0.2s;
     border: 1px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
 }
@@ -684,7 +684,6 @@ body {
     border-radius: 0.5rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     overflow: hidden;
-    transition: box-shadow 0.2s;
     display: flex;
     flex-direction: column;
     max-height: 100vh;
@@ -764,7 +763,7 @@ body {
     font-size: 0.8rem;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s;
     flex-shrink: 0;
 }
 
@@ -896,7 +895,7 @@ body {
     align-items: center;
     justify-content: center;
     pointer-events: auto;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
     z-index: 2;
 }
 
@@ -931,7 +930,7 @@ body {
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.4);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
 }
 
 .slider-dot.active {
@@ -1018,7 +1017,7 @@ body {
         font-size: 0.875rem;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.25s ease;
+        transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         border-radius: 8px;
         border: 1px solid transparent;
         position: relative;
@@ -1321,7 +1320,7 @@ body {
     border-radius: 24px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background-color 0.2s;
     font-size: 0.875rem;
     white-space: nowrap;
     display: inline-flex;

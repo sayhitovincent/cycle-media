@@ -207,7 +207,7 @@
                             <div class="position-controls">
                                 <div class="position-control-group">
                                     <label>Scale:</label>
-                                    <input type="range" class="position-control" data-format="square" data-control="scale" min="0.5" max="2" value="1" step="0.25">
+                                    <input type="range" class="position-control" data-format="square" data-control="scale" min="0.5" max="2" value="1" step="0.05">
                                 </div>
                                 <div class="position-control-group">
                                     <label>Position X:</label>
@@ -241,7 +241,7 @@
                                 <div class="position-controls">
                                                                     <div class="position-control-group">
                                     <label>Scale:</label>
-                                    <input type="range" class="position-control" data-format="landscape" data-control="scale" min="0.5" max="2" value="1" step="0.25">
+                                    <input type="range" class="position-control" data-format="landscape" data-control="scale" min="0.5" max="2" value="1" step="0.05">
                                 </div>
                                     <div class="position-control-group">
                                         <label>Position X:</label>
@@ -274,7 +274,7 @@
                                 <div class="position-controls">
                                                                     <div class="position-control-group">
                                     <label>Scale:</label>
-                                    <input type="range" class="position-control" data-format="portrait" data-control="scale" min="0.5" max="2" value="1" step="0.25">
+                                    <input type="range" class="position-control" data-format="portrait" data-control="scale" min="0.5" max="2" value="1" step="0.05">
                                 </div>
                                     <div class="position-control-group">
                                         <label>Position X:</label>
@@ -308,7 +308,7 @@
                             <div class="position-controls">
                                 <div class="position-control-group">
                                     <label>Scale:</label>
-                                    <input type="range" class="position-control" data-format="story" data-control="scale" min="0.5" max="2" value="1" step="0.25">
+                                    <input type="range" class="position-control" data-format="story" data-control="scale" min="0.5" max="2" value="1" step="0.05">
                                 </div>
                                 <div class="position-control-group">
                                     <label>Position X:</label>
@@ -341,7 +341,7 @@
                             <div class="position-controls">
                                 <div class="position-control-group">
                                     <label>Scale:</label>
-                                    <input type="range" class="position-control" data-format="reel" data-control="scale" min="0.5" max="2" value="1" step="0.25">
+                                    <input type="range" class="position-control" data-format="reel" data-control="scale" min="0.5" max="2" value="1" step="0.05">
                                 </div>
                                 <div class="position-control-group">
                                     <label>Position X:</label>
@@ -377,11 +377,14 @@
         }
     </script>
     
+    <script src="toast-manager.js"></script>
     <script src="script.js"></script>
     <script src="strava-integration.js"></script>
     <script>
         // Initialize Strava integration
-        window.stravaIntegration = new StravaIntegration();
+        document.addEventListener('DOMContentLoaded', async function() {
+            window.stravaIntegration = new StravaIntegration();
+        });
     </script>
 </body>
 </html> 

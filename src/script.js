@@ -1,96 +1,3 @@
-// Toast Notification System
-class ToastManager {
-    constructor() {
-        this.container = null;
-        this.init();
-    }
-
-    init() {
-        // Create toast container if it doesn't exist
-        this.container = document.querySelector('.toast-container');
-        if (!this.container) {
-            this.container = document.createElement('div');
-            this.container.className = 'toast-container';
-            document.body.appendChild(this.container);
-        }
-    }
-
-    show(message, type = 'info', title = null, duration = 5000) {
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-
-        const iconSymbols = {
-            success: '✓',
-            error: '✕',
-            warning: '!',
-            info: 'i'
-        };
-
-        const defaultTitles = {
-            success: 'Success',
-            error: 'Error',
-            warning: 'Warning',
-            info: 'Info'
-        };
-
-        const toastTitle = title || defaultTitles[type];
-        const iconSymbol = iconSymbols[type] || 'i';
-
-        toast.innerHTML = `
-            <div class="toast-icon">${iconSymbol}</div>
-            <div class="toast-content">
-                <div class="toast-title">${toastTitle}</div>
-                <div class="toast-message">${message}</div>
-            </div>
-            <button class="toast-close">&times;</button>
-        `;
-
-        // Add close functionality
-        const closeBtn = toast.querySelector('.toast-close');
-        closeBtn.addEventListener('click', () => this.hide(toast));
-
-        // Add to container
-        this.container.appendChild(toast);
-
-        // Auto-hide after duration
-        if (duration > 0) {
-            setTimeout(() => this.hide(toast), duration);
-        }
-
-        return toast;
-    }
-
-    hide(toast) {
-        if (!toast || !toast.parentNode) return;
-
-        toast.classList.add('hiding');
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 300);
-    }
-
-    success(message, title = null, duration = 4000) {
-        return this.show(message, 'success', title, duration);
-    }
-
-    error(message, title = null, duration = 6000) {
-        return this.show(message, 'error', title, duration);
-    }
-
-    warning(message, title = null, duration = 5000) {
-        return this.show(message, 'warning', title, duration);
-    }
-
-    info(message, title = null, duration = 4000) {
-        return this.show(message, 'info', title, duration);
-    }
-}
-
-// Create global toast instance
-window.toast = new ToastManager();
-
 class InstagramMediaGenerator {
     constructor() {
         this.formats = {
@@ -103,6 +10,7 @@ class InstagramMediaGenerator {
         
         this.selectedBackground = null;
         this.uploadedImages = [];
+        this.imageHashes = []; // Track image hashes for duplicate detection
         this.selectedImageIndex = -1;
         this.draggedIndex = null;
         this.squareSliderIndex = 0;
@@ -205,17 +113,91 @@ class InstagramMediaGenerator {
         });
     }
 
+    /**
+     * Generate a simple hash for an image to detect duplicates
+     * Uses canvas to sample pixel data and create a fingerprint
+     */
+    generateImageHash(img) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Use a small sample size for performance
+        const sampleSize = 32;
+        canvas.width = sampleSize;
+        canvas.height = sampleSize;
+        
+        // Draw scaled-down image
+        ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+        
+        // Get image data and create simple hash
+        const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize);
+        const data = imageData.data;
+        
+        let hash = 0;
+        for (let i = 0; i < data.length; i += 4) {
+            // Sample RGB values (skip alpha)
+            const rgb = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+            hash = ((hash << 5) - hash + rgb) & 0xffffffff;
+        }
+        
+        return hash.toString(36);
+    }
+
+    /**
+     * Check if an image is a duplicate based on its hash
+     */
+    isDuplicateImage(img) {
+        const hash = this.generateImageHash(img);
+        return this.imageHashes.includes(hash);
+    }
+
+    /**
+     * Add an image to the collection with duplicate checking
+     */
+    addImageIfUnique(img, showSuccessMessage = true) {
+        if (this.isDuplicateImage(img)) {
+            window.toast.warning('Duplicate image skipped', 'Already Added');
+            return false;
+        }
+        
+        // Generate and store hash
+        const hash = this.generateImageHash(img);
+        this.imageHashes.push(hash);
+        
+        // Add image
+        this.uploadedImages.push(img);
+        this.updateImageGallery();
+        
+        if (this.uploadedImages.length === 1) {
+            this.selectImage(0);
+        }
+        
+
+        
+        return true;
+    }
+
     handleImageUpload(files) {
+        let addedCount = 0;
+        let skippedCount = 0;
+        
         Array.from(files).forEach(file => {
             if (file.type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const img = new Image();
                     img.onload = () => {
-                        this.uploadedImages.push(img);
-                        this.updateImageGallery();
-                        if (this.uploadedImages.length === 1) {
-                            this.selectImage(0);
+                        if (this.addImageIfUnique(img, false)) {
+                            addedCount++;
+                        } else {
+                            skippedCount++;
+                        }
+                        
+                        // Show summary message after processing all files
+                        if (addedCount + skippedCount === files.length) {
+                            if (skippedCount > 0) {
+                                window.toast.warning('All images were duplicates and skipped');
+                            }
                         }
                     };
                     img.src = e.target.result;
@@ -341,6 +323,7 @@ class InstagramMediaGenerator {
     deleteImage(index) {
         if (index >= 0 && index < this.uploadedImages.length) {
             this.uploadedImages.splice(index, 1);
+            this.imageHashes.splice(index, 1); // Remove corresponding hash
             
             // Remove corresponding position settings for square format
             if (this.imagePositions.square.length > index) {
@@ -366,7 +349,7 @@ class InstagramMediaGenerator {
             this.updateSquareSlider();
             this.generateAllPreviews();
             
-            window.toast.success('Image deleted successfully');
+
         }
     }
 
@@ -403,6 +386,10 @@ class InstagramMediaGenerator {
         const movedImage = this.uploadedImages.splice(fromIndex, 1)[0];
         this.uploadedImages.splice(toIndex, 0, movedImage);
         
+        // Move the corresponding hash
+        const movedHash = this.imageHashes.splice(fromIndex, 1)[0];
+        this.imageHashes.splice(toIndex, 0, movedHash);
+        
         // Move the corresponding position settings for square format
         if (this.imagePositions.square.length > fromIndex) {
             const movedPosition = this.imagePositions.square.splice(fromIndex, 1)[0];
@@ -431,8 +418,6 @@ class InstagramMediaGenerator {
         this.updateSquareSlider();
         this.updatePositionControls(); // Update position controls for potentially new current image
         this.generateAllPreviews();
-        
-        window.toast.success('Images reordered successfully');
     }
 
     // Instagram Slider functionality for Square format
@@ -707,10 +692,10 @@ class InstagramMediaGenerator {
     }
 
     drawBottomLeftStats(ctx, stats, bottomY, startX, maxWidth, formatKey) {
-        // Scale font sizes based on format - increase sizes for all except square
+        // Scale font sizes based on format - square now matches landscape
         let baseScale;
         if (formatKey === 'square') {
-            baseScale = 1.1; // increased by 10%
+            baseScale = 1.859; // matches landscape sizing
         } else if (formatKey === 'landscape') {
             baseScale = 1.859; // 1.43 * 1.3 = increased by another 30%
         } else {
@@ -772,10 +757,10 @@ class InstagramMediaGenerator {
     }
 
     drawBottomLeftTitle(ctx, title, bottomY, startX, maxWidth, formatKey) {
-        // Scale font size based on format - increase sizes for all except square
+        // Scale font size based on format - square now matches landscape
         let baseScale;
         if (formatKey === 'square') {
-            baseScale = 1.1; // increased by 10%
+            baseScale = 1.43; // matches landscape sizing
         } else if (formatKey === 'landscape') {
             baseScale = 1.43; // 1.1 * 1.3 = increased by 30%
         } else {
@@ -792,7 +777,7 @@ class InstagramMediaGenerator {
         } while (lines.length > 3 && fontSize > 20);
         
         // Draw title lines from bottom up - scale line height for better spacing
-        const lineHeightGap = formatKey === 'square' ? 8 : Math.floor(12 * baseScale);
+        const lineHeightGap = Math.floor(12 * baseScale);
         const lineHeight = fontSize + lineHeightGap;
         lines.forEach((line, index) => {
             const y = bottomY - ((lines.length - 1 - index) * lineHeight);
@@ -863,13 +848,13 @@ window.addEventListener('stravaPhotoAddedToList', (event) => {
         // Convert file to image and add to uploaded images
         const img = new Image();
         img.onload = () => {
-            window.mediaGenerator.uploadedImages.push(img);
-            window.mediaGenerator.updateImageGallery();
-            window.mediaGenerator.updateSquareSlider();
-            
-            // If this should be set as background, select it
-            if (setAsBackground) {
-                window.mediaGenerator.selectImage(window.mediaGenerator.uploadedImages.length - 1);
+            if (window.mediaGenerator.addImageIfUnique(img, false)) { // Don't show success toast for Strava imports
+                window.mediaGenerator.updateSquareSlider();
+                
+                // If this should be set as background, select it
+                if (setAsBackground) {
+                    window.mediaGenerator.selectImage(window.mediaGenerator.uploadedImages.length - 1);
+                }
             }
         };
         img.src = URL.createObjectURL(file);
@@ -886,11 +871,11 @@ window.addEventListener('stravaPhotoImported', (event) => {
          // Convert file to image and add to uploaded images
          const img = new Image();
          img.onload = () => {
-             window.mediaGenerator.uploadedImages.push(img);
-             window.mediaGenerator.updateImageGallery();
-             window.mediaGenerator.updateSquareSlider();
-             // Auto-select the imported image
-             window.mediaGenerator.selectImage(window.mediaGenerator.uploadedImages.length - 1);
+             if (window.mediaGenerator.addImageIfUnique(img, false)) { // Don't show success toast for Strava imports
+                 window.mediaGenerator.updateSquareSlider();
+                 // Auto-select the imported image
+                 window.mediaGenerator.selectImage(window.mediaGenerator.uploadedImages.length - 1);
+             }
          };
          img.src = URL.createObjectURL(file);
      } else {

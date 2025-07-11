@@ -41,18 +41,17 @@
     padding: 0.75rem 1.5rem;
     border-radius: 8px;
     font-weight: 500;
-    transition: all 0.2s;
     border: 1px solid #e5e7eb;
 }
 
 .section-header {
     text-align: center;
-    margin-bottom: 3rem;
+    margin: 1rem 0 2rem 0;
 }
 
 .section-header h2 {
     font-size: 1.875rem;
-    font-weight: 700;
+    font-weight: 500;
     color: #1f2937;
     margin: 0 0 1rem 0;
 }
@@ -61,7 +60,7 @@
     font-size: 1.125rem;
     color: #6b7280;
     margin: 0;
-    max-width: 600px;
+    max-width: 500px;
     margin: 0 auto;
 }
 
@@ -74,18 +73,11 @@
 }
 
 .integration-card {
-    background: white;
-    border-radius: 16px;
-    padding: 2rem;
-    border: 1px solid #e5e7eb;
-    transition: all 0.3s ease;
     position: relative;
-    overflow: hidden;
-}
-
-.integration-card:hover {
-    box-shadow: 0 10px 15px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    border-color: #d1d5db;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
 }
 
 .integration-card.connected {
@@ -111,13 +103,35 @@
 }
 
 .platform-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 24px;
+    padding: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+}
+
+/* Platform-specific background colors to match posts page */
+.strava-icon {
+    background: #FC4C02;
+}
+
+.instagram-icon {
+    background: #E4405F;
+}
+
+.facebook-icon {
+    background: #1877F2;
+}
+
+.threads-icon {
+    background: #000000;
+}
+
+.x-icon {
+    background: #000000;
 }
 
 .connection-status {
@@ -154,9 +168,9 @@
 
 .card-content h3 {
     font-size: 1.5rem;
-    font-weight: 700;
+    font-weight: 500;
     color: #1f2937;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.5rem 0;
 }
 
 .card-content p {
@@ -215,6 +229,7 @@
 .card-actions {
     display: flex;
     gap: 1rem;
+    margin-top: 1rem;
 }
 
 .primary-btn {
@@ -222,10 +237,9 @@
     color: white;
     border: none;
     padding: 0.75rem 1.5rem;
-    border-radius: 8px;
+    border-radius: 9999px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
     flex: 1;
     font-size: 0.875rem;
 }
@@ -239,10 +253,9 @@
     color: #374151;
     border: 1px solid #e5e7eb;
     padding: 0.75rem 1.5rem;
-    border-radius: 8px;
+    border-radius: 9999px;
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.2s;
     flex: 1;
     font-size: 0.875rem;
 }
@@ -250,6 +263,39 @@
 .secondary-btn:hover {
     background: #f3f4f6;
     border-color: #d1d5db;
+}
+
+.ghost-btn {
+    background: transparent;
+    color: #1f2937;
+    border: 1px solid #1f2937;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.ghost-btn:hover {
+    background: #1f2937;
+    color: white;
+}
+
+.disconnect-btn {
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+    font-size: 0.875rem;
+}
+
+.disconnect-btn:hover {
+    background: #dc2626;
 }
 
 .connected .primary-btn {
@@ -268,6 +314,8 @@
 .strava-card .primary-btn:hover {
     background: #E23902;
 }
+
+
 
 .instagram-card .primary-btn {
     background: linear-gradient(45deg, #833AB4, #FD1D1D, #FCB045);
@@ -323,11 +371,10 @@
     background: white;
     border-radius: 12px;
     border: 1px solid #e5e7eb;
-    transition: all 0.2s;
+    transition: box-shadow 0.2s;
 }
 
 .benefit-item:hover {
-    transform: translateY(-2px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
@@ -416,8 +463,8 @@
     }
 
     .platform-icon {
-        width: 40px;
-        height: 40px;
+        width: 28px;
+        height: 28px;
     }
 
     .card-content h3 {
