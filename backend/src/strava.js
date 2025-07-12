@@ -1,11 +1,16 @@
 const express = require('express');
 const axios = require('axios');
+const config = require('./config');
 const {
     getApiCacheKey,
     getApiCachedResponse,
     setApiCachedResponse,
     getCachedImage,
-    setCachedImage
+    setCachedImage,
+    clearApiCache,
+    clearImageCache,
+    getApiCacheStatus,
+    getImageCacheStatus
 } = require('./cache');
 
 const router = express.Router();
@@ -13,19 +18,25 @@ const router = express.Router();
 // Store user tokens (in production, use a database)
 const userTokens = {};
 
-// Strava API configuration
-const STRAVA_CONFIG = {
-    clientId: process.env.STRAVA_CLIENT_ID,
-    clientSecret: process.env.STRAVA_CLIENT_SECRET,
-    redirectUri: process.env.STRAVA_REDIRECT_URI,
-    authUrl: 'https://www.strava.com/oauth/authorize',
-    tokenUrl: 'https://www.strava.com/oauth/token',
-    apiUrl: 'https://www.strava.com/api/v3'
-};
+// Configuration endpoint
+router.get('/api/config', (req, res) => {
+    const clientConfig = {
+        backend: {
+            url: config.urls.backend
+        },
+        strava: {
+            clientId: config.strava.clientId,
+            redirectUri: config.strava.redirectUri
+        },
+        environment: config.server.nodeEnv
+    };
+    
+    res.json(clientConfig);
+});
 
 // OAuth Routes
 router.get('/auth/strava', (req, res) => {
-    const authUrl = `${STRAVA_CONFIG.authUrl}?client_id=${STRAVA_CONFIG.clientId}&response_type=code&redirect_uri=${STRAVA_CONFIG.redirectUri}&approval_prompt=force&scope=read,activity:read_all`;
+    const authUrl = `${config.strava.authUrl}?client_id=${config.strava.clientId}&response_type=code&redirect_uri=${config.strava.redirectUri}&approval_prompt=force&scope=read,activity:read_all`;
     res.redirect(authUrl);
 });
 
@@ -33,13 +44,13 @@ router.get('/auth/strava/callback', async (req, res) => {
     const { code } = req.query;
     
     if (!code) {
-        return res.redirect(`${process.env.FRONTEND_URL}?error=no_code`);
+        return res.redirect(`${config.urls.frontend}?error=no_code`);
     }
 
     try {
-        const tokenResponse = await axios.post(STRAVA_CONFIG.tokenUrl, {
-            client_id: STRAVA_CONFIG.clientId,
-            client_secret: STRAVA_CONFIG.clientSecret,
+        const tokenResponse = await axios.post(config.strava.tokenUrl, {
+            client_id: config.strava.clientId,
+            client_secret: config.strava.clientSecret,
             code: code,
             grant_type: 'authorization_code'
         });
@@ -54,10 +65,10 @@ router.get('/auth/strava/callback', async (req, res) => {
             athlete: athlete
         };
 
-        res.redirect(`${process.env.FRONTEND_URL}?auth=success`);
+        res.redirect(`${config.urls.frontend}?auth=success`);
     } catch (error) {
         console.error('OAuth error:', error.response?.data || error.message);
-        res.redirect(`${process.env.FRONTEND_URL}?error=oauth_failed`);
+        res.redirect(`${config.urls.frontend}?error=oauth_failed`);
     }
 });
 
@@ -95,7 +106,7 @@ router.get('/api/activities', async (req, res) => {
 
     try {
         const user = userTokens[req.session.userId];
-        const response = await axios.get(`${STRAVA_CONFIG.apiUrl}/athlete/activities`, {
+        const response = await axios.get(`${config.strava.apiUrl}/athlete/activities`, {
             headers: {
                 'Authorization': `Bearer ${user.accessToken}`
             },
@@ -141,17 +152,22 @@ router.get('/api/activities', async (req, res) => {
 });
 
 router.get('/api/activities/:id', async (req, res) => {
+    const timestamp = new Date().toISOString();
+    const activityId = req.params.id;
+    console.log(`[${timestamp}] 🚴 Activity detail request for ${activityId}`);
+    
     if (!req.session.userId || !userTokens[req.session.userId]) {
+        console.log(`[${timestamp}] ❌ Activity detail unauthorized - no session/token`);
         return res.status(401).json({ error: 'Not authenticated' });
     }
 
     const userId = req.session.userId;
-    const activityId = req.params.id;
     const cacheKey = getApiCacheKey(userId, `activity_${activityId}`, { size: 2048 });
     
     // Check cache first
     const cachedResponse = getApiCachedResponse(cacheKey);
     if (cachedResponse) {
+        console.log(`[${timestamp}] 📦 Activity detail cache HIT for ${activityId}`);
         res.set('X-Cache', 'HIT');
         return res.json(cachedResponse);
     }
@@ -161,10 +177,10 @@ router.get('/api/activities/:id', async (req, res) => {
         
         // Fetch detailed activity data
         const [activityResponse, photosResponse] = await Promise.all([
-            axios.get(`${STRAVA_CONFIG.apiUrl}/activities/${activityId}`, {
+            axios.get(`${config.strava.apiUrl}/activities/${activityId}`, {
                 headers: { 'Authorization': `Bearer ${user.accessToken}` }
             }),
-            axios.get(`${STRAVA_CONFIG.apiUrl}/activities/${activityId}/photos`, {
+            axios.get(`${config.strava.apiUrl}/activities/${activityId}/photos`, {
                 headers: { 'Authorization': `Bearer ${user.accessToken}` },
                 params: { size: 2048 } // Highest resolution
             })
@@ -248,6 +264,88 @@ router.get('/api/activities/:id', async (req, res) => {
     }
 });
 
+// Activity streams endpoint for detailed GPS data with timestamps
+router.get('/api/activities/:id/streams', async (req, res) => {
+    const timestamp = new Date().toISOString();
+    const activityId = req.params.id;
+    console.log(`[${timestamp}] 🗺️  Streams request for activity ${activityId}`);
+    
+    if (!req.session.userId || !userTokens[req.session.userId]) {
+        console.log(`[${timestamp}] ❌ Streams request unauthorized - no session/token`);
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    const userId = req.session.userId;
+    const cacheKey = getApiCacheKey(userId, `streams_${activityId}`, {});
+    
+    // Check cache first
+    const cachedResponse = getApiCachedResponse(cacheKey);
+    if (cachedResponse) {
+        console.log(`[${timestamp}] 📦 Streams cache HIT for activity ${activityId}`);
+        res.set('X-Cache', 'HIT');
+        return res.json(cachedResponse);
+    }
+
+    try {
+        const user = userTokens[req.session.userId];
+        console.log(`[${timestamp}] 🌐 Fetching streams from Strava API for activity ${activityId}`);
+        
+        // Fetch activity streams (GPS coordinates and timestamps)
+        // Request high resolution data with more parameters for better GPS tracking
+        const response = await axios.get(`${config.strava.apiUrl}/activities/${activityId}/streams/latlng,time,distance,altitude`, {
+            headers: { 'Authorization': `Bearer ${user.accessToken}` },
+            params: {
+                resolution: 'high',  // Request high resolution data points
+                series_type: 'time'  // Sample based on time intervals
+            }
+        });
+
+        const streams = response.data;
+        let processedStreams = {};
+        let coordinateCount = 0;
+        let timestampCount = 0;
+        let distanceCount = 0;
+        let altitudeCount = 0;
+
+        // Process streams into a more usable format
+        streams.forEach(stream => {
+            if (stream.type === 'latlng') {
+                processedStreams.coordinates = stream.data; // Array of [lat, lng] pairs
+                coordinateCount = stream.data.length;
+            } else if (stream.type === 'time') {
+                processedStreams.timestamps = stream.data; // Array of seconds from start
+                timestampCount = stream.data.length;
+            } else if (stream.type === 'distance') {
+                processedStreams.distances = stream.data; // Array of cumulative distances in meters
+                distanceCount = stream.data.length;
+            } else if (stream.type === 'altitude') {
+                processedStreams.altitudes = stream.data; // Array of altitude values in meters
+                altitudeCount = stream.data.length;
+            }
+        });
+
+        console.log(`[${timestamp}] ✅ Streams processed: ${coordinateCount} coordinates, ${timestampCount} timestamps, ${distanceCount} distances, ${altitudeCount} altitudes`);
+
+        // Cache the response
+        setApiCachedResponse(cacheKey, processedStreams);
+        
+        res.set('X-Cache', 'MISS');
+        res.json(processedStreams);
+    } catch (error) {
+        console.error(`[${timestamp}] ❌ Activity streams fetch error for ${activityId}:`, error.response?.data || error.message);
+        if (error.response?.status === 401) {
+            console.log(`[${timestamp}] 🔑 Token expired for user ${userId}`);
+            return res.status(401).json({ error: 'Token expired' });
+        }
+        if (error.response?.status === 404) {
+            console.log(`[${timestamp}] 📍 No GPS data available for activity ${activityId}`);
+            return res.status(404).json({ error: 'No GPS data available for this activity' });
+        }
+        console.error(`[${timestamp}] 💥 Unexpected error:`, error.stack);
+        res.status(500).json({ error: 'Failed to fetch activity streams' });
+    }
+});
+
 // Image proxy with caching to handle CORS and reduce API calls
 router.get('/api/proxy-image', async (req, res) => {
     try {
@@ -271,7 +369,7 @@ router.get('/api/proxy-image', async (req, res) => {
             res.set({
                 'Content-Type': cachedImage.contentType,
                 'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-                'Access-Control-Allow-Origin': process.env.FRONTEND_URL || 'http://localhost:8567',
+                'Access-Control-Allow-Origin': config.urls.frontend,
                 'Access-Control-Allow-Credentials': 'true',
                 'X-Cache': 'HIT',
                 'X-Cache-Date': cachedImage.cachedAt
@@ -325,7 +423,7 @@ router.get('/api/proxy-image', async (req, res) => {
         res.set({
             'Content-Type': contentType,
             'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
-            'Access-Control-Allow-Origin': process.env.FRONTEND_URL || 'http://localhost:8567',
+            'Access-Control-Allow-Origin': config.urls.frontend,
             'Access-Control-Allow-Credentials': 'true',
             'X-Cache': 'MISS'
         });
@@ -336,6 +434,113 @@ router.get('/api/proxy-image', async (req, res) => {
         if (!res.headersSent) {
             res.status(500).json({ error: 'Failed to fetch image' });
         }
+    }
+});
+
+// Cache management endpoints
+router.get('/api/cache/status', async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const userId = req.session.userId;
+        const [apiCacheStatus, imageCacheStatus] = await Promise.all([
+            getApiCacheStatus(userId),
+            getImageCacheStatus(userId)
+        ]);
+
+        res.json({
+            userId: userId,
+            api: apiCacheStatus,
+            images: imageCacheStatus,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Cache status error:', error);
+        res.status(500).json({ error: 'Failed to get cache status' });
+    }
+});
+
+router.delete('/api/cache', async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const userId = req.session.userId;
+        const [apiResult, imageResult] = await Promise.all([
+            clearApiCache(userId),
+            clearImageCache(userId)
+        ]);
+
+        res.json({
+            message: 'All cache cleared successfully',
+            api: apiResult,
+            images: imageResult,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Cache clear error:', error);
+        res.status(500).json({ error: 'Failed to clear cache' });
+    }
+});
+
+router.delete('/api/cache/api', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const userId = req.session.userId;
+        const result = clearApiCache(userId);
+        res.json({
+            message: 'API cache cleared successfully',
+            ...result,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('API cache clear error:', error);
+        res.status(500).json({ error: 'Failed to clear API cache' });
+    }
+});
+
+router.delete('/api/cache/api/:endpoint', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const userId = req.session.userId;
+        const endpoint = req.params.endpoint;
+        const result = clearApiCache(userId, endpoint);
+        res.json({
+            message: `API cache cleared for endpoint: ${endpoint}`,
+            ...result,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Endpoint cache clear error:', error);
+        res.status(500).json({ error: 'Failed to clear endpoint cache' });
+    }
+});
+
+router.delete('/api/cache/images', async (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+        const userId = req.session.userId;
+        const result = await clearImageCache(userId);
+        res.json({
+            message: 'Image cache cleared successfully',
+            ...result,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('Image cache clear error:', error);
+        res.status(500).json({ error: 'Failed to clear image cache' });
     }
 });
 
@@ -372,7 +577,7 @@ function getUserTokens() {
 
 // Helper function to get Strava config (for use by other modules)
 function getStravaConfig() {
-    return STRAVA_CONFIG;
+    return config.strava;
 }
 
 module.exports = {

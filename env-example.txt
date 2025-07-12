@@ -1,12 +1,25 @@
 # Strava API Configuration
 STRAVA_CLIENT_ID=your_strava_client_id_here
 STRAVA_CLIENT_SECRET=your_strava_client_secret_here
+# For local development:
 STRAVA_REDIRECT_URI=http://localhost:3001/auth/strava/callback
+# For mobile/network access (replace with your actual IP):
+# STRAVA_REDIRECT_URI=http://192.168.1.100:3001/auth/strava/callback
+# For production:
+# STRAVA_REDIRECT_URI=https://your-backend-domain.com/auth/strava/callback
 
 # Server Configuration
 PORT=3001
 FRONTEND_URL=http://localhost:8567
 SESSION_SECRET=your-super-secret-session-key-change-this-in-production
+
+# Backend URL Configuration
+# For local development:
+BACKEND_URL=http://localhost:3001
+# For mobile/network access (replace with your actual IP):
+# BACKEND_URL=http://192.168.1.100:3001
+# For production:
+# BACKEND_URL=https://your-backend-domain.com
 
 # Development
 NODE_ENV=development 

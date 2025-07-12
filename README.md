@@ -72,6 +72,43 @@ The application will be available at:
 - **Frontend**: http://localhost:8567
 - **Backend API**: http://localhost:3001
 
+### 📱 Mobile/Network Access Setup
+
+To access the application from mobile devices or other computers on your network:
+
+1. **Find your computer's IP address**:
+   ```bash
+   # On Linux/Mac
+   ip addr show | grep 'inet ' | grep -v '127.0.0.1'
+   
+   # On Windows
+   ipconfig | findstr "IPv4"
+   ```
+
+2. **Update your `.env` file for network access**:
+   ```env
+   # Replace 192.168.1.100 with your actual IP address
+   BACKEND_URL=http://192.168.1.100:3001
+   STRAVA_REDIRECT_URI=http://192.168.1.100:3001/auth/strava/callback
+   FRONTEND_URL=http://192.168.1.100:8567
+   ```
+
+3. **Update your Strava app settings**:
+   - Go to [https://www.strava.com/settings/api](https://www.strava.com/settings/api)
+   - Update **Authorization Callback Domain** to your IP address (e.g., `192.168.1.100`)
+
+4. **Restart the services**:
+   ```bash
+   docker compose down
+   docker compose up --build
+   ```
+
+5. **Access from any device on your network**:
+   - Frontend: `http://192.168.1.100:8567`
+   - Mobile browsers, tablets, other computers can now access the app
+
+> **Note**: The backend will automatically configure itself to use the correct URLs based on your environment variables, and the frontend will load the configuration dynamically.
+
 ### 4. Using Strava Integration
 
 1. Click **"Connect with Strava"** in the app
